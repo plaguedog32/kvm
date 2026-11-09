@@ -60,7 +60,7 @@ export default function WebRTCVideo({
 
   // Store hooks
   const settings = useSettingsStore();
-  const { handleKeyPress, resetKeyboardState, executeMacro } = useKeyboard();
+  const { handleKeyPress, resetKeyboardState } = useKeyboard();
   const {
     getRelMouseMoveHandler,
     getAbsMouseMoveHandler,
@@ -129,11 +129,6 @@ export default function WebRTCVideo({
     tapMeta: code => {
       void handleKeyPress(keys[code], true);
       void handleKeyPress(keys[code], false);
-    },
-    shortcut: action => {
-      return executeMacro([
-        { keys: [action === "copy" ? "KeyC" : "KeyV"], modifiers: ["ControlLeft"], delay: 50 },
-      ]);
     },
   });
 

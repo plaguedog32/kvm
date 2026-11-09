@@ -4,6 +4,7 @@ import { ExclamationCircleIcon } from "@heroicons/react/16/solid";
 import { LuCornerDownLeft, LuEye, LuEyeOff } from "react-icons/lu";
 
 import { guestClipboard, guestStatus } from "@/utils/guest";
+import { copyLocalText } from "@/utils/localClipboard";
 import { cx } from "@/cva.config";
 import { m } from "@localizations/messages.js";
 import { useHidStore, useSettingsStore, useUiStore } from "@hooks/stores";
@@ -228,8 +229,7 @@ export default function PasteModal() {
                       disabled={guestBusy}
                       onClick={() => {
                         const confirm = confirmDelivery.current;
-                        void navigator.clipboard
-                          .writeText(textValue)
+                        void copyLocalText(textValue)
                           .then(() => confirm?.())
                           .catch(() => notifications.error(m.guest_operation_failed()));
                       }}

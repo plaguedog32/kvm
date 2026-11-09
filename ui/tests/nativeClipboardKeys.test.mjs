@@ -69,3 +69,21 @@ test("blur reset clears modifier and shortcut bookkeeping", () => {
   keys.clear();
   assert.equal(keys.modifiers.size + keys.swallowed.size, 0);
 });
+
+test("a plain held letter repeat cannot claim a shortcut or swallow its legacy keyup",()=>{
+ for(const code of ["KeyC","KeyV"]){
+  const keys=new NativeClipboardKeys();
+  assert.equal(keys.down({code,repeat:false}),false); // ordinary HID down
+  keys.down({code:"ControlLeft",repeat:false});
+  assert.equal(keys.down({code,repeat:true}),false);
+  assert.equal(keys.claim({code,repeat:true}),false);
+  assert.equal(keys.up({code,key:"c"}),false); // ordinary HID up must pass
+ }
+});
+
+test("fresh Ctrl pressed during a transfer is restored for keys and mouse clicks",()=>{
+ const keys=new NativeClipboardKeys();keys.prepareRelease();
+ keys.down({code:"ControlRight",repeat:false});keys.finishRelease();
+ assert.deepEqual(keys.takeRestore({code:"Pointer",altKey:false}),["ControlRight"]);
+ assert.deepEqual(keys.takeRestore({code:"KeyS",altKey:false}),[]);
+});

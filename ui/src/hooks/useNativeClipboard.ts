@@ -17,7 +17,6 @@ export interface ClipboardKeyboard {
   releaseKeys: () => void;
   restoreModifiers: (codes: string[]) => void;
   tapMeta: (code: string) => void;
-  shortcut: (action: "copy" | "paste") => Promise<void>;
 }
 export default function useNativeClipboard(disabled: boolean, keyboard: ClipboardKeyboard) {
   const channel = useRTCStore(state => state.rpcDataChannel);
@@ -41,7 +40,6 @@ export default function useNativeClipboard(disabled: boolean, keyboard: Clipboar
     let pasteFallback: ReturnType<typeof setTimeout> | undefined;
     let latePasteUntil = 0;
     const bookkeeping = new NativeClipboardKeys();
-    const { swallowed } = bookkeeping;
     let bufferedMeta: string | null = null;
     let metaUsed = false;
     const mac = /Mac|iPhone|iPad/.test(navigator.platform);
@@ -150,7 +148,7 @@ export default function useNativeClipboard(disabled: boolean, keyboard: Clipboar
       void write
         .then(async () => {
           if (valid(current)) {
-            await confirm().catch(() => {});
+            await confirm();
             remoteCopyPending.current = false;
           }
         })
@@ -229,7 +227,10 @@ export default function useNativeClipboard(disabled: boolean, keyboard: Clipboar
         return;
       }
       event.stopImmediatePropagation();
-      swallowed.add(event.code);
+      if (!bookkeeping.claim(event)) {
+        event.preventDefault();
+        return;
+      }
       metaUsed = true;
       if (operation) {
         event.preventDefault();
@@ -251,8 +252,7 @@ export default function useNativeClipboard(disabled: boolean, keyboard: Clipboar
             latePasteUntil = Date.now() + 1000;
             const current = begin();
             if (current)
-              void integration.current
-                .shortcut("paste")
+              void guestClipboard("paste_existing", "", current.signal, { interactive: true })
                 .catch(error => fail(current, error))
                 .finally(() => finish(current));
           }
@@ -296,6 +296,16 @@ export default function useNativeClipboard(disabled: boolean, keyboard: Clipboar
     document.addEventListener("keyup", keyup, { capture: true, signal: listeners.signal });
     document.addEventListener("copy", onCopy, { capture: true, signal: listeners.signal });
     document.addEventListener("paste", paste, { capture: true, signal: listeners.signal });
+    document.addEventListener(
+      "pointerdown",
+      event => {
+        if (eligible(event))
+          integration.current.restoreModifiers(
+            bookkeeping.takeRestore({ code: "Pointer", altKey: event.altKey }),
+          );
+      },
+      { capture: true, signal: listeners.signal },
+    );
     window.addEventListener("blur", onBlur, { signal: listeners.signal });
     window.addEventListener("focus", onBlur, { signal: listeners.signal });
     document.addEventListener("visibilitychange", onBlur, { signal: listeners.signal });
@@ -354,8 +364,12 @@ export default function useNativeClipboard(disabled: boolean, keyboard: Clipboar
       if (!document.execCommand("copy")) throw new Error("Browser blocked clipboard write");
       const confirm = pendingDelivery.current;
       pendingDelivery.current = null;
-      remoteCopyPending.current = false;
-      if (confirm) void confirm().catch(() => {});
+      if (confirm)
+        void confirm()
+          .then(() => {
+            remoteCopyPending.current = false;
+          })
+          .catch(() => {});
       setReadyText(null);
     } catch (error) {
       notifications.error(error instanceof Error ? error.message : "Copy failed");
