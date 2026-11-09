@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/jetkvm/kvm/internal/localonly"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -45,6 +46,9 @@ func rpcSendWOLMagicPacket(macAddress string, broadcastIP string) error {
 		target = broadcastIP
 	}
 
+	if localonly.Enabled && target != "255.255.255.255" && !localonly.PrivateIP(target) {
+		return localonly.ErrDisabled
+	}
 	// Create the magic packet
 	packet := createMagicPacket(mac)
 

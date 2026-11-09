@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@components/ConfirmDialog";
 import TextArea from "@components/TextArea";
 import notifications from "@/notifications";
 import { m } from "@localizations/messages.js";
+import { LOCAL_ONLY } from "@/ui.config";
 
 interface Rect {
   x: number;
@@ -26,6 +27,7 @@ let workerPromise: ReturnType<typeof initWorker> | null = null;
 let cleanupTimer: ReturnType<typeof setTimeout> | null = null;
 
 async function initWorker() {
+  if (LOCAL_ONLY) throw new Error("OCR model downloads are disabled in this local-only build");
   const createWorker = await loadTesseract();
   return createWorker("eng", 1);
 }
@@ -156,6 +158,7 @@ export default function OcrOverlay() {
   // Global keyboard shortcut: Ctrl+Shift+O (Cmd+Shift+O on Mac)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (LOCAL_ONLY) return;
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") {
         // Don't toggle if video isn't available
         if (videoWidth === 0 || videoHeight === 0) return;
@@ -169,7 +172,9 @@ export default function OcrOverlay() {
     return () => document.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [isOcrMode, setOcrMode, videoWidth, videoHeight]);
 
-  return <AnimatePresence>{isOcrMode && <OcrOverlayContent key="ocr" />}</AnimatePresence>;
+  return (
+    <AnimatePresence>{!LOCAL_ONLY && isOcrMode && <OcrOverlayContent key="ocr" />}</AnimatePresence>
+  );
 }
 
 function OcrOverlayContent() {

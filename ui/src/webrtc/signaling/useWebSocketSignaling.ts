@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import pkg from "react-use-websocket";
 
-import { CLOUD_API } from "@/ui.config";
+import { CLOUD_API, LOCAL_ONLY } from "@/ui.config";
 import { isOnDevice } from "@/main";
 import { useRTCStore, useUiStore } from "@hooks/stores";
 import { useDeviceUiNavigation } from "@hooks/useAppNavigation";
@@ -419,7 +419,7 @@ export const useWebSocketSignaling: SignalingHook = ({
       console.debug("[setupPeerConnection] Creating peer connection");
       setLoadingMessage(m.creating_peer_connection());
       pc = new RTCPeerConnection({
-        ...(iceServers ? { iceServers } : {}),
+        ...(LOCAL_ONLY ? { iceServers: [] } : iceServers ? { iceServers } : {}),
       });
 
       setPeerConnectionState(pc.connectionState);

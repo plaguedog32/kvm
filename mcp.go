@@ -96,7 +96,7 @@ func buildMCPService() *deviceMCPService {
 			if video == nil {
 				video = &native.VideoState{}
 			}
-			return map[string]any{"video": video, "usb": rpcGetUSBState(), "media": media, "keyboard": rpcGetKeyboardLedState(), "browser_sessions": getActiveSessions()}, nil
+			return map[string]any{"video": video, "usb": rpcGetUSBState(), "media": media, "keyboard": rpcGetKeyboardLedState(), "browser_sessions": getActiveSessions(), "network_policy": map[string]any{"application": "private-lan-only", "system_firewall_applied": localOnlySystemFirewall.Load()}}, nil
 		},
 		GuestStatus: func(ctx context.Context) (any, error) { return getGuestService().manager.CheckStatus(ctx), nil },
 		GetClipboard: func(ctx context.Context) (*mcpserver.Clipboard, error) {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/beevik/ntp"
+	"github.com/jetkvm/kvm/internal/localonly"
 )
 
 var DefaultNTPServerIPs = []string{
@@ -190,6 +191,9 @@ func (t *TimeSync) queryMultipleNTP(servers []string, timeout time.Duration) (no
 }
 
 func queryNtpServer(server string, timeout time.Duration) (now *time.Time, response *ntp.Response, err error) {
+	if localonly.Enabled && !localonly.PrivateIP(server) {
+		return nil, nil, localonly.ErrDisabled
+	}
 	resp, err := ntp.QueryWithOptions(server, ntp.QueryOptions{Timeout: timeout})
 	if err != nil {
 		return nil, nil, err

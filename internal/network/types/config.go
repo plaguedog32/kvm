@@ -5,6 +5,7 @@ import (
 	"net/url"
 
 	"github.com/guregu/null/v6"
+	"github.com/jetkvm/kvm/internal/localonly"
 )
 
 // IPv4StaticConfig represents static IPv4 configuration
@@ -76,6 +77,9 @@ func (c *NetworkConfig) GetMDNSMode() *MDNSListenOptions {
 
 // GetTransportProxyFunc returns a function for HTTP proxy configuration
 func (c *NetworkConfig) GetTransportProxyFunc() func(*http.Request) (*url.URL, error) {
+	if localonly.Enabled {
+		return localonly.Proxy
+	}
 	return func(*http.Request) (*url.URL, error) {
 		if c.HTTPProxy.String == "" {
 			return nil, nil

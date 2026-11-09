@@ -9,12 +9,12 @@ import (
 	"strings"
 
 	"github.com/jetkvm/kvm/internal/confparser"
+	"github.com/jetkvm/kvm/internal/localonly"
 	"github.com/jetkvm/kvm/internal/logging"
 	"github.com/jetkvm/kvm/internal/native"
 	"github.com/jetkvm/kvm/internal/network/types"
 	"github.com/jetkvm/kvm/internal/sync"
 	"github.com/jetkvm/kvm/internal/usbgadget"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -127,6 +127,9 @@ type Config struct {
 
 // GetUpdateAPIURL returns the update API URL
 func (c *Config) GetUpdateAPIURL() string {
+	if localonly.Enabled && c.UpdateAPIURL == "" {
+		return ""
+	}
 	if c.UpdateAPIURL == "" {
 		return DefaultAPIURL
 	}
@@ -183,10 +186,10 @@ var (
 
 func getDefaultConfig() Config {
 	return Config{
-		CloudURL:             DefaultAPIURL,
-		UpdateAPIURL:         DefaultAPIURL,
-		CloudAppURL:          "https://app.jetkvm.com",
-		AutoUpdateEnabled:    true, // Set a default value
+		CloudURL:             "",
+		UpdateAPIURL:         "",
+		CloudAppURL:          "",
+		AutoUpdateEnabled:    false, // Set a default value
 		ActiveExtension:      "",
 		KeyboardMacros:       []KeyboardMacro{},
 		DisplayRotation:      "270",
@@ -242,6 +245,7 @@ var (
 func LoadConfig() {
 	configLock.Lock()
 	defer configLock.Unlock()
+	defer func() { applyLocalOnlyConfig(config) }()
 
 	if config != nil {
 		logger.Debug().Msg("config already loaded, skipping")
@@ -361,6 +365,7 @@ func SaveBackupConfig() error {
 func saveConfig(path string) error {
 	configLock.Lock()
 	defer configLock.Unlock()
+	applyLocalOnlyConfig(config)
 
 	logger.Trace().Str("path", path).Msg("Saving config")
 

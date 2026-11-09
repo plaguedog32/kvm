@@ -102,6 +102,7 @@ func setupRouter() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	gin.DisableConsoleColor()
 	r := gin.Default()
+	r.Use(localOnlyBrowserPolicy)
 	// The device is reached directly, not behind a reverse proxy, so don't
 	// trust any X-Forwarded-For/X-Real-IP headers. Without this, gin trusts
 	// all proxies by default and c.ClientIP() returns a client-controlled
@@ -452,6 +453,9 @@ func handleWebRTCSignalWsMessages(
 			}
 
 			l.Info().Str("data", fmt.Sprintf("%v", candidate)).Msg("adding incoming ICE candidate to current session")
+			if !localOnlyCandidate(candidate.Candidate) {
+				continue
+			}
 			if err = currentSession.peerConnection.AddICECandidate(candidate); err != nil {
 				l.Warn().Str("error", err.Error()).Msg("failed to add incoming ICE candidate to our peer connection")
 			}

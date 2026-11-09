@@ -1218,5 +1218,8 @@
   "guest_clipboard_transferring": "Transferring clipboard…",
   "guest_clipboard_copy_ready_note": "Remote text is ready. Your browser needs one more copy gesture.",
   "guest_clipboard_copy_ready": "Copy ready text",
-  "guest_clipboard_busy": "Clipboard transfer is in progress. Try the shortcut again when it finishes."
+  "guest_clipboard_busy": "Clipboard transfer is in progress. Try the shortcut again when it finishes.",
+  "local_only_description": "Local-only firmware: cloud access, automatic updates and public time services are disabled. OCR downloads are disabled. Local KVM, MCP and the USB guest clipboard remain available.",
+  "local_only_system_filter_active": "Device-wide IPv4 and IPv6 filtering is active.",
+  "local_only_system_filter_unverified": "Device-wide filtering has not been verified. External application services remain disabled."
 }

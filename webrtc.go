@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coder/websocket"
+	"github.com/coder/websocket/wsjson"
+	"github.com/gin-gonic/gin"
 	"github.com/jetkvm/kvm/internal/diagnostics"
 	"github.com/jetkvm/kvm/internal/hidrpc"
+	"github.com/jetkvm/kvm/internal/localonly"
 	"github.com/jetkvm/kvm/internal/logging"
 	"github.com/jetkvm/kvm/internal/playoutdelay"
 	"github.com/jetkvm/kvm/internal/sync"
 	"github.com/jetkvm/kvm/internal/usbgadget"
-
-	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
-	"github.com/gin-gonic/gin"
 	"github.com/pion/ice/v4"
 	"github.com/pion/interceptor"
 	"github.com/pion/webrtc/v4"
@@ -243,6 +243,7 @@ func (s *Session) ExchangeOffer(offerStr string) (string, error) {
 	}
 
 	// Set the remote SessionDescription
+	offer.SDP = localonly.FilterSDP(offer.SDP)
 	if err = s.peerConnection.SetRemoteDescription(offer); err != nil {
 		return "", err
 	}
@@ -433,9 +434,18 @@ func getOnHidMessageHandler(session *Session, scopedLogger *zerolog.Logger, chan
 }
 
 func newSession(config SessionConfig) (*Session, error) {
+	if localonly.Enabled && config.IsCloud {
+		return nil, localonly.ErrDisabled
+	}
 	webrtcSettingEngine := webrtc.SettingEngine{
 		LoggerFactory: logging.GetPionDefaultLoggerFactory(),
 	}
+	privateNetwork, err := localonly.NewPrivateNet()
+	if err != nil {
+		return nil, err
+	}
+	webrtcSettingEngine.SetNet(privateNetwork)
+	webrtcSettingEngine.SetIPFilter(func(ip net.IP) bool { return localonly.PrivateIP(ip.String()) })
 
 	if config.MDNSMode != "" && config.MDNSMode != "disabled" {
 		webrtcSettingEngine.SetICEMulticastDNSMode(ice.MulticastDNSModeQueryOnly)

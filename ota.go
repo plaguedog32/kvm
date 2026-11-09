@@ -9,6 +9,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/uuid"
+	"github.com/jetkvm/kvm/internal/localonly"
 	"github.com/jetkvm/kvm/internal/ota"
 )
 
@@ -92,6 +93,9 @@ func GetLocalVersion() (systemVersion *semver.Version, appVersion *semver.Versio
 }
 
 func getUpdateStatus(includePreRelease bool) (*ota.UpdateStatus, error) {
+	if localonly.Enabled && config.UpdateAPIURL == "" {
+		return nil, fmt.Errorf("configure a private update server: %w", localonly.ErrDisabled)
+	}
 	updateStatus, err := otaState.GetUpdateStatus(context.Background(), ota.UpdateParams{
 		DeviceID:          GetDeviceID(),
 		SKU:               GetDeviceSKU(),

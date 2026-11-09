@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { LOCAL_ONLY } from "@/ui.config";
 
 import { JsonRpcResponse, useJsonRpc } from "@hooks/useJsonRpc";
 import { useDeviceUiNavigation } from "@hooks/useAppNavigation";
@@ -16,7 +17,7 @@ import { deleteCookie, map_locale_code_to_name } from "@/utils";
 export default function SettingsGeneralRoute() {
   const { send } = useJsonRpc();
   const { navigateTo } = useDeviceUiNavigation();
-  const [autoUpdate, setAutoUpdate] = useState(true);
+  const [autoUpdate, setAutoUpdate] = useState(false);
   const currentVersions = useDeviceStore(state => {
     const { appVersion, systemVersion } = state;
     // appVersion is "" once known on a device with no separate app.
@@ -134,6 +135,7 @@ export default function SettingsGeneralRoute() {
               description={m.general_auto_update_description()}
             >
               <Checkbox
+                disabled={LOCAL_ONLY}
                 checked={autoUpdate}
                 onChange={e => {
                   handleAutoUpdateChange(e.target.checked);

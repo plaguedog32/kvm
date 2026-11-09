@@ -16,9 +16,10 @@ import { NestedSettingsGroup } from "@components/NestedSettingsGroup";
 import { TextAreaWithLabel } from "@components/TextArea";
 import api from "@/api";
 import notifications from "@/notifications";
-import { DEVICE_API } from "@/ui.config";
+import { DEVICE_API, LOCAL_ONLY } from "@/ui.config";
 import { isOnDevice } from "@/main";
 import { m } from "@localizations/messages.js";
+import { LocalNetworkPolicy } from "@components/LocalNetworkPolicy";
 import { GuestAccessSettings } from "@components/GuestAccessSettings";
 import { MCPAccessSettings } from "@components/MCPAccessSettings";
 
@@ -324,136 +325,139 @@ export default function SettingsAccessIndexRoute() {
       {isOnDevice && <MCPAccessSettings />}
       {isOnDevice && <GuestAccessSettings />}
 
-      <div className="space-y-4">
-        <SettingsSectionHeader title="Remote" description={m.access_remote_description()} />
-
+      {LOCAL_ONLY && <LocalNetworkPolicy />}
+      {!LOCAL_ONLY && (
         <div className="space-y-4">
-          {!isAdopted && (
-            <>
-              <SettingsItem
-                title={m.access_cloud_provider_title()}
-                description={m.access_cloud_provider_description()}
-              >
-                <SelectMenuBasic
-                  size="SM"
-                  value={selectedProvider}
-                  onChange={e => handleProviderChange(e.target.value)}
-                  options={[
-                    { value: "jetkvm", label: m.access_provider_jetkvm() },
-                    { value: "custom", label: m.access_provider_custom() },
-                  ]}
-                />
-              </SettingsItem>
+          <SettingsSectionHeader title="Remote" description={m.access_remote_description()} />
 
-              {selectedProvider === "custom" && (
-                <NestedSettingsGroup className="mt-4">
-                  <div className="flex items-end gap-x-2">
-                    <InputFieldWithLabel
-                      size="SM"
-                      label={m.access_cloud_api_url_label()}
-                      value={cloudApiUrl}
-                      onChange={e => setCloudApiUrl(e.target.value)}
-                      placeholder="https://api.example.com"
-                    />
-                  </div>
-                  <div className="flex items-end gap-x-2">
-                    <InputFieldWithLabel
-                      size="SM"
-                      label={m.access_cloud_app_url_label()}
-                      value={cloudAppUrl}
-                      onChange={e => setCloudAppUrl(e.target.value)}
-                      placeholder="https://app.example.com"
-                    />
-                  </div>
-                </NestedSettingsGroup>
-              )}
-            </>
-          )}
+          <div className="space-y-4">
+            {!isAdopted && (
+              <>
+                <SettingsItem
+                  title={m.access_cloud_provider_title()}
+                  description={m.access_cloud_provider_description()}
+                >
+                  <SelectMenuBasic
+                    size="SM"
+                    value={selectedProvider}
+                    onChange={e => handleProviderChange(e.target.value)}
+                    options={[
+                      { value: "jetkvm", label: m.access_provider_jetkvm() },
+                      { value: "custom", label: m.access_provider_custom() },
+                    ]}
+                  />
+                </SettingsItem>
 
-          {/* Show security info for JetKVM Cloud */}
-          {selectedProvider === "jetkvm" && (
-            <GridCard>
-              <div className="flex items-start gap-x-4 p-4">
-                <ShieldCheckIcon className="mt-1 h-8 w-8 shrink-0 text-blue-600 dark:text-blue-500" />
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                      {m.access_cloud_security_title()}
-                    </h3>
+                {selectedProvider === "custom" && (
+                  <NestedSettingsGroup className="mt-4">
+                    <div className="flex items-end gap-x-2">
+                      <InputFieldWithLabel
+                        size="SM"
+                        label={m.access_cloud_api_url_label()}
+                        value={cloudApiUrl}
+                        onChange={e => setCloudApiUrl(e.target.value)}
+                        placeholder="https://api.example.com"
+                      />
+                    </div>
+                    <div className="flex items-end gap-x-2">
+                      <InputFieldWithLabel
+                        size="SM"
+                        label={m.access_cloud_app_url_label()}
+                        value={cloudAppUrl}
+                        onChange={e => setCloudAppUrl(e.target.value)}
+                        placeholder="https://app.example.com"
+                      />
+                    </div>
+                  </NestedSettingsGroup>
+                )}
+              </>
+            )}
+
+            {/* Show security info for JetKVM Cloud */}
+            {selectedProvider === "jetkvm" && (
+              <GridCard>
+                <div className="flex items-start gap-x-4 p-4">
+                  <ShieldCheckIcon className="mt-1 h-8 w-8 shrink-0 text-blue-600 dark:text-blue-500" />
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                        {m.access_cloud_security_title()}
+                      </h3>
+                      <div>
+                        <ul className="list-disc space-y-1 pl-5 text-xs text-slate-700 dark:text-slate-300">
+                          <li>{m.access_security_encryption()}</li>
+                          <li>{m.access_security_zero_trust()}</li>
+                          <li>{m.access_security_oidc()}</li>
+                          <li>{m.access_security_streams()}</li>
+                        </ul>
+                      </div>
+
+                      <div className="text-xs text-slate-700 dark:text-slate-300">
+                        {m.access_security_open_source()}{" "}
+                        <a
+                          href="https://github.com/jetkvm"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-400"
+                        >
+                          {m.access_github_link()}
+                        </a>
+                        .
+                      </div>
+                    </div>
+                    <hr className="block w-full border-slate-800/20 dark:border-slate-300/20" />
+
                     <div>
-                      <ul className="list-disc space-y-1 pl-5 text-xs text-slate-700 dark:text-slate-300">
-                        <li>{m.access_security_encryption()}</li>
-                        <li>{m.access_security_zero_trust()}</li>
-                        <li>{m.access_security_oidc()}</li>
-                        <li>{m.access_security_streams()}</li>
-                      </ul>
-                    </div>
-
-                    <div className="text-xs text-slate-700 dark:text-slate-300">
-                      {m.access_security_open_source()}{" "}
-                      <a
-                        href="https://github.com/jetkvm"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-medium text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-400"
-                      >
-                        {m.access_github_link()}
-                      </a>
-                      .
+                      <LinkButton
+                        to="https://jetkvm.com/docs/networking/remote-access"
+                        size="SM"
+                        theme="light"
+                        text={m.access_learn_security()}
+                      />
                     </div>
                   </div>
-                  <hr className="block w-full border-slate-800/20 dark:border-slate-300/20" />
+                </div>
+              </GridCard>
+            )}
 
+            {!isAdopted ? (
+              <div className="flex items-end gap-x-2">
+                <Button
+                  onClick={() => onCloudAdoptClick(cloudApiUrl, cloudAppUrl)}
+                  size="SM"
+                  theme="primary"
+                  text={m.access_adopt_kvm()}
+                />
+              </div>
+            ) : (
+              <div>
+                <div className="space-y-2">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    {m.access_adopted_message()}
+                  </p>
                   <div>
-                    <LinkButton
-                      to="https://jetkvm.com/docs/networking/remote-access"
+                    <Button
                       size="SM"
                       theme="light"
-                      text={m.access_learn_security()}
+                      text={m.access_deregister()}
+                      className="text-red-600"
+                      onClick={() => {
+                        if (deviceId) {
+                          if (window.confirm(m.access_confirm_deregister())) {
+                            deregisterDevice();
+                          }
+                        } else {
+                          notifications.error(m.access_no_device_id());
+                        }
+                      }}
                     />
                   </div>
                 </div>
               </div>
-            </GridCard>
-          )}
-
-          {!isAdopted ? (
-            <div className="flex items-end gap-x-2">
-              <Button
-                onClick={() => onCloudAdoptClick(cloudApiUrl, cloudAppUrl)}
-                size="SM"
-                theme="primary"
-                text={m.access_adopt_kvm()}
-              />
-            </div>
-          ) : (
-            <div>
-              <div className="space-y-2">
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  {m.access_adopted_message()}
-                </p>
-                <div>
-                  <Button
-                    size="SM"
-                    theme="light"
-                    text={m.access_deregister()}
-                    className="text-red-600"
-                    onClick={() => {
-                      if (deviceId) {
-                        if (window.confirm(m.access_confirm_deregister())) {
-                          deregisterDevice();
-                        }
-                      } else {
-                        notifications.error(m.access_no_device_id());
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

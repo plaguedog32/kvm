@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jetkvm/kvm/internal/confparser"
+	"github.com/jetkvm/kvm/internal/localonly"
 	"github.com/jetkvm/kvm/internal/mdns"
 	"github.com/jetkvm/kvm/internal/network/types"
 	"github.com/jetkvm/kvm/internal/ota"
@@ -112,6 +113,9 @@ func triggerTimeSyncOnNetworkStateChange() {
 }
 
 func setPublicIPReadyState(ipv4Ready, ipv6Ready bool) {
+	if localonly.Enabled {
+		return
+	}
 	if publicIPState == nil {
 		return
 	}
@@ -187,7 +191,7 @@ func initPublicIPState() {
 	// but it will be initialized anyway to avoid nil pointer dereferences
 	ps := myip.NewPublicIPState(&myip.PublicIPStateConfig{
 		Logger:             networkLogger,
-		CloudflareEndpoint: config.CloudURL,
+		CloudflareEndpoint: "",
 		APIEndpoint:        "",
 		IPv4:               false,
 		IPv6:               false,
@@ -202,7 +206,7 @@ func initPublicIPState() {
 				case link.AfInet6:
 					netType = "tcp6"
 				}
-				return (&net.Dialer{}).DialContext(ctx, netType, addr)
+				return localonly.DialContext(ctx, netType, addr)
 			}
 
 			return &http.Client{
@@ -211,6 +215,9 @@ func initPublicIPState() {
 			}
 		},
 	})
+	if localonly.Enabled {
+		ps.Stop()
+	}
 	publicIPState = ps
 }
 

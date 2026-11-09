@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/jetkvm/kvm/internal/localonly"
 )
 
 var defaultHTTPUrls = []string{
@@ -128,6 +130,9 @@ func queryHttpTime(
 ) (now *time.Time, response *http.Response, err error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = proxyFunc
+	if localonly.Enabled {
+		localonly.ConfigureTransport(transport)
+	}
 
 	client := http.Client{
 		Transport: transport,

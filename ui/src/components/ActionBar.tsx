@@ -18,6 +18,7 @@ import { CommandLineIcon } from "@heroicons/react/20/solid";
 import { SplitButtonGroup, SplitButtonPrimary, SplitButtonCaret } from "@components/SplitButton";
 
 import { cx } from "@/cva.config";
+import { LOCAL_ONLY } from "@/ui.config";
 import {
   useHidStore,
   useMountMediaStore,
@@ -149,7 +150,7 @@ export default function Actionbar({
                     icon: LuScanText,
                     onClick: () => setOcrMode(!isOcrMode),
                     active: isOcrMode,
-                    disabled: videoWidth === 0 || videoHeight === 0,
+                    disabled: LOCAL_ONLY || videoWidth === 0 || videoHeight === 0,
                   },
                 ]}
               />

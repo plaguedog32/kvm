@@ -10,13 +10,13 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/jetkvm/kvm/internal/sync"
-
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jetkvm/kvm/internal/localonly"
+	"github.com/jetkvm/kvm/internal/sync"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog"
@@ -202,6 +202,10 @@ func wsResetMetrics(established bool, sourceType string, source string) {
 }
 
 func handleCloudRegister(c *gin.Context) {
+	if localonly.Enabled {
+		c.JSON(http.StatusForbidden, gin.H{"error": localonly.ErrDisabled.Error()})
+		return
+	}
 	var req CloudRegisterRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -306,6 +310,9 @@ func disconnectCloud(reason error) {
 }
 
 func runWebsocketClient() error {
+	if localonly.Enabled {
+		return localonly.ErrDisabled
+	}
 	if config.CloudToken == "" {
 		time.Sleep(5 * time.Second)
 		return fmt.Errorf("cloud token is not set")
@@ -497,6 +504,9 @@ func handleSessionRequest(
 }
 
 func RunWebsocketClient() {
+	if localonly.Enabled {
+		return
+	}
 	for {
 		// If the cloud token is not set, we don't need to run the websocket client.
 		if config.CloudToken == "" {

@@ -75,3 +75,11 @@ remote copy. Non-text and empty local clipboards use ordinary guest paste.
 Prepared text clears on blur, local editing or device changes. Additional
 shortcuts during a transfer show a busy message; they do not paste stale content.
 Interactive operations wait at most 200 ms for a busy guest channel.
+
+## Private-LAN-only firmware
+
+This fork disables vendor cloud access, automatic updates, public time fallbacks,
+public-IP discovery and OCR CDN downloads. HTTP/DNS and WebRTC destinations are
+restricted to the private network. The UI reports whether the device-wide IPv4
+and IPv6 egress filter was successfully applied. See the
+[network policy and validation limits](mcp/NETWORK_POLICY.md).

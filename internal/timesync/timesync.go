@@ -6,9 +6,9 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/jetkvm/kvm/internal/localonly"
 	"github.com/jetkvm/kvm/internal/network/types"
 	"github.com/jetkvm/kvm/internal/sync"
-
 	"github.com/rs/zerolog"
 )
 
@@ -100,6 +100,9 @@ func (t *TimeSync) SetNetworkConfig(cfg *types.NetworkConfig) {
 }
 
 func (t *TimeSync) getSyncMode() SyncMode {
+	if localonly.Enabled {
+		return SyncMode{Ntp: true, Http: true, Ordering: []string{"ntp_dhcp", "ntp_user_provided", "http_user_provided"}, NtpUseFallback: false, HttpUseFallback: false}
+	}
 	syncMode := SyncMode{
 		Ntp:             true,
 		Http:            true,

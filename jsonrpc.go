@@ -13,13 +13,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pion/webrtc/v4"
-	"github.com/rs/zerolog"
-
 	"github.com/jetkvm/kvm/internal/hidrpc"
+	"github.com/jetkvm/kvm/internal/localonly"
 	"github.com/jetkvm/kvm/internal/logging"
 	"github.com/jetkvm/kvm/internal/usbgadget"
 	"github.com/jetkvm/kvm/internal/utils"
+	"github.com/pion/webrtc/v4"
+	"github.com/rs/zerolog"
 )
 
 type JSONRPCRequest struct {
@@ -238,6 +238,9 @@ func rpcGetAutoUpdateState() (bool, error) {
 }
 
 func rpcSetAutoUpdateState(enabled bool) (bool, error) {
+	if localonly.Enabled && enabled {
+		return false, localonly.ErrDisabled
+	}
 	config.AutoUpdateEnabled = enabled
 	if err := SaveConfig(); err != nil {
 		return config.AutoUpdateEnabled, fmt.Errorf("failed to save config: %w", err)
@@ -442,8 +445,8 @@ type SSHKeyState struct {
 func rpcGetDeviceCapabilities() ([]string, error) {
 	return []string{
 		"shell", "extensions", "usb_serial", "custom_edid", "upload_channel", "video_during_update",
-		"http_proxy", "domain", "mdns", "ipv6",
-		"tls", "local_loopback", "log_level", "tailscale",
+		"local_only", "domain", "mdns", "ipv6",
+		"tls", "local_loopback", "log_level",
 	}, nil
 }
 
@@ -1121,6 +1124,9 @@ func rpcSetUsbDeviceState(device string, enabled bool) error {
 }
 
 func rpcSetCloudUrl(apiUrl string, appUrl string) error {
+	if localonly.Enabled {
+		return localonly.ErrDisabled
+	}
 	currentCloudURL := config.CloudURL
 	config.CloudURL = apiUrl
 	config.CloudAppURL = appUrl
@@ -1424,6 +1430,7 @@ var rpcHandlers = map[string]RPCHandler{
 	"reboot":                     {Func: rpcReboot, Params: []string{"force"}},
 	"getDeviceID":                {Func: rpcGetDeviceID},
 	"getDeviceCapabilities":      {Func: rpcGetDeviceCapabilities},
+	"getNetworkPolicyState":      {Func: rpcGetNetworkPolicyState},
 	"deregisterDevice":           {Func: rpcDeregisterDevice},
 	"getCloudState":              {Func: rpcGetCloudState},
 	"getNetworkState":            {Func: rpcGetNetworkState},

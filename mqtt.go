@@ -4,15 +4,17 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
 
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gwatts/rootcerts"
+	"github.com/jetkvm/kvm/internal/localonly"
 	"github.com/jetkvm/kvm/internal/logging"
 	"github.com/jetkvm/kvm/internal/sync"
-
-	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 var mqttLogger = logging.GetSubsystemLogger("mqtt")
@@ -88,6 +90,9 @@ func validateBaseTopic(topic string) error {
 }
 
 func NewMQTTManager(cfg *MQTTConfig, deviceID string) (*MQTTManager, error) {
+	if cfg != nil && localonly.Enabled && cfg.Enabled && !localonly.PrivateIP(cfg.Broker) {
+		return nil, localonly.ErrDisabled
+	}
 	if cfg == nil || !cfg.Enabled {
 		return nil, fmt.Errorf("MQTT is not enabled")
 	}
@@ -119,7 +124,7 @@ func NewMQTTManager(cfg *MQTTConfig, deviceID string) (*MQTTManager, error) {
 	if cfg.UseTLS {
 		scheme = "ssl"
 	}
-	brokerURL := fmt.Sprintf("%s://%s:%d", scheme, cfg.Broker, port)
+	brokerURL := fmt.Sprintf("%s://%s", scheme, net.JoinHostPort(cfg.Broker, strconv.Itoa(port)))
 
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(brokerURL)
@@ -368,6 +373,9 @@ type MQTTTestResult struct {
 }
 
 func rpcTestMqttConnection(settings MQTTConfig) (MQTTTestResult, error) {
+	if localonly.Enabled && !localonly.PrivateIP(settings.Broker) {
+		return MQTTTestResult{}, localonly.ErrDisabled
+	}
 	if settings.Broker == "" {
 		return MQTTTestResult{Error: "broker address is required"}, nil
 	}
@@ -385,7 +393,7 @@ func rpcTestMqttConnection(settings MQTTConfig) (MQTTTestResult, error) {
 	if settings.UseTLS {
 		scheme = "ssl"
 	}
-	brokerURL := fmt.Sprintf("%s://%s:%d", scheme, settings.Broker, port)
+	brokerURL := fmt.Sprintf("%s://%s", scheme, net.JoinHostPort(settings.Broker, strconv.Itoa(port)))
 
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(brokerURL)
