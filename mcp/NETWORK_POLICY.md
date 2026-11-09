@@ -51,6 +51,16 @@ active and the UI/MCP explicitly report system-wide filtering as **unverified**.
 Traffic before the application starts is not covered by this startup hook;
 whole-boot isolation requires a base-OS early boot rule or an upstream network ACL.
 
+For the stock image without iptables utilities, `scripts/build_firewall_tools.sh`
+builds iptables 1.8.13 against the device SDK (the multicall binary still uses the
+device's uClibc). Provision it under `/userdata/jetkvm/firewall/bin`, with links
+named `iptables`, `ip6tables`, `iptables-restore`, and `ip6tables-restore`.
+Place the reviewed `internal/localonly/firewall.sh` at
+`/userdata/jetkvm/firewall/firewall.sh`. `scripts/S05private-lan.sh`, installed
+under `/userdata/init.d`, loads the filter modules and applies the policy before
+the stock `RkLunch.sh` starts networking. Verify this ordering on other OS images.
+These OS support files are separate from the application firmware update.
+
 The policy does not restrict developer build dependencies or explicitly opened
 external documentation on the developer's own computer.
 
