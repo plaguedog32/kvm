@@ -24,6 +24,7 @@
     "i18n:find-excess": "python3 ./tools/find_excess_messages.py",
     "i18n:find-unused": "python3 ./tools/find_unused_messages.py",
     "i18n:find-dupes": "python3 ./tools/find_duplicate_translations.py",
+    "test:clipboard": "node --experimental-strip-types --test tests/nativeClipboardKeys.test.mjs",
     "test:e2e": "playwright test",
     "prepare": "cd .. && husky ui/.husky"
   },

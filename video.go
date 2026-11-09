@@ -13,6 +13,7 @@ var (
 	lastVideoState       native.VideoState
 	videoSleepModeCtx    context.Context
 	videoSleepModeCancel context.CancelFunc
+	videoSleepTickerMu   sync.Mutex
 )
 
 const (
@@ -60,7 +61,7 @@ func isHostDisplayAdvertised() bool {
 }
 
 func shouldAdvertiseHostDisplayLocked() bool {
-	return !config.HideDisplayWhenIdle || getActiveSessions() > 0
+	return !config.HideDisplayWhenIdle || getActiveSessions() > 0 || mcpCaptureActive.Load()
 }
 
 func setHostDisplayAdvertised(enabled bool, reason string, force bool) error {
@@ -140,6 +141,12 @@ func rpcSetVideoSleepMode(duration int) error {
 }
 
 func stopVideoSleepModeTicker() {
+	videoSleepTickerMu.Lock()
+	defer videoSleepTickerMu.Unlock()
+	stopVideoSleepModeTickerLocked()
+}
+
+func stopVideoSleepModeTickerLocked() {
 	nativeLogger.Trace().Msg("stopping HDMI sleep mode ticker")
 
 	if videoSleepModeCancel != nil {
@@ -151,6 +158,8 @@ func stopVideoSleepModeTicker() {
 }
 
 func startVideoSleepModeTicker() {
+	videoSleepTickerMu.Lock()
+	defer videoSleepTickerMu.Unlock()
 	if !nativeInstance.VideoSleepModeSupported() {
 		return
 	}
@@ -162,12 +171,12 @@ func startVideoSleepModeTicker() {
 	} else if config.VideoSleepAfterSec > 0 {
 		duration = time.Duration(config.VideoSleepAfterSec) * time.Second
 	} else {
-		stopVideoSleepModeTicker()
+		stopVideoSleepModeTickerLocked()
 		return
 	}
 
 	// Stop any existing timer and goroutine
-	stopVideoSleepModeTicker()
+	stopVideoSleepModeTickerLocked()
 
 	// Create new context for this ticker
 	videoSleepModeCtx, videoSleepModeCancel = context.WithCancel(context.Background())
@@ -184,13 +193,21 @@ func doVideoSleepModeTicker(ctx context.Context, duration time.Duration) {
 	for {
 		select {
 		case <-timer.C:
-			if getActiveSessions() > 0 {
+			videoPauseMu.Lock()
+			if ctx.Err() != nil {
+				videoPauseMu.Unlock()
+				return
+			}
+			if getActiveSessions() > 0 || mcpCaptureActive.Load() {
+				videoPauseMu.Unlock()
 				nativeLogger.Warn().Msg("not going to enter HDMI sleep mode because there are active sessions")
+				timer.Reset(duration)
 				continue
 			}
 
 			nativeLogger.Trace().Msg("entering HDMI sleep mode")
 			_ = nativeInstance.VideoSetSleepMode(true)
+			videoPauseMu.Unlock()
 		case <-ctx.Done():
 			nativeLogger.Trace().Msg("HDMI sleep mode ticker stopped")
 			return

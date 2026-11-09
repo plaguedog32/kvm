@@ -93,6 +93,7 @@ export default function Actionbar({
   return (
     <Container className="border-b border-b-slate-800/20 bg-white dark:border-b-slate-300/20 dark:bg-slate-900">
       <div
+        data-local-clipboard
         onKeyUp={e => e.stopPropagation()}
         onKeyDown={e => e.stopPropagation()}
         className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-1.5"

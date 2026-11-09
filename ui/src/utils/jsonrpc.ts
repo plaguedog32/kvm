@@ -4,6 +4,8 @@ import { sleep } from "@/utils";
 // JSON-RPC utility for use outside of React components
 
 export interface JsonRpcCallOptions {
+  // Sensitive multi-request operations remain bound to their original viewer.
+  channel?: RTCDataChannel;
   method: string;
   params?: unknown;
   attemptTimeoutMs?: number;
@@ -35,14 +37,22 @@ async function waitForRtcReady(signal: AbortSignal): Promise<RTCDataChannel> {
     const currentChannel = state.rpcDataChannel;
 
     // Channel instance changed (new connection replaced old one)
-    if (lastSeenChannel && currentChannel && lastSeenChannel !== currentChannel) {
-      console.debug("[waitForRtcReady] Channel instance changed, aborting wait");
+    if (
+      lastSeenChannel &&
+      currentChannel &&
+      lastSeenChannel !== currentChannel
+    ) {
+      console.debug(
+        "[waitForRtcReady] Channel instance changed, aborting wait",
+      );
       throw new Error("RTC connection changed while waiting for readiness");
     }
 
     // Channel was removed from store (connection closed)
     if (lastSeenChannel && !currentChannel) {
-      console.debug("[waitForRtcReady] Channel was removed from store, aborting wait");
+      console.debug(
+        "[waitForRtcReady] Channel was removed from store, aborting wait",
+      );
       throw new Error("RTC connection was closed while waiting for readiness");
     }
 
@@ -137,7 +147,9 @@ async function sendRpcRequest<T>(
 export function callJsonRpc<T>(
   options: JsonRpcCallOptions,
 ): Promise<JsonRpcCallResponse<T> & { result: T }>;
-export function callJsonRpc(options: JsonRpcCallOptions): Promise<JsonRpcCallResponse<unknown>>;
+export function callJsonRpc(
+  options: JsonRpcCallOptions,
+): Promise<JsonRpcCallResponse<unknown>>;
 export async function callJsonRpc<T = unknown>(
   options: JsonRpcCallOptions,
 ): Promise<JsonRpcCallResponse<T>> {
@@ -152,14 +164,25 @@ export async function callJsonRpc<T = unknown>(
     try {
       // Wait for RTC readiness without timeout - this allows time for WebRTC to connect
       const readyAbortController = new AbortController();
-      const rpcDataChannel = await waitForRtcReady(readyAbortController.signal);
+      const rpcDataChannel =
+        options.channel ?? (await waitForRtcReady(readyAbortController.signal));
+      if (
+        options.channel &&
+        useRTCStore.getState().rpcDataChannel !== options.channel
+      ) {
+        throw new Error("RTC viewer changed during this operation");
+      }
 
       // Now apply timeout only to the actual RPC request/response
       const rpcAbortController = new AbortController();
       timeoutId = setTimeout(() => rpcAbortController.abort(), timeout);
 
       // Send RPC request and wait for response
-      const response = await sendRpcRequest<T>(rpcDataChannel, options, rpcAbortController.signal);
+      const response = await sendRpcRequest<T>(
+        rpcDataChannel,
+        options,
+        rpcAbortController.signal,
+      );
 
       // Retry on error if attempts remain
       if (response.error && attempt < maxAttempts - 1) {
@@ -175,7 +198,9 @@ export async function callJsonRpc<T = unknown>(
         continue;
       }
 
-      throw error instanceof Error ? error : new Error(`JSON-RPC call failed after ${timeout}ms`);
+      throw error instanceof Error
+        ? error
+        : new Error(`JSON-RPC call failed after ${timeout}ms`);
     } finally {
       if (timeoutId !== null) {
         clearTimeout(timeoutId);
@@ -256,7 +281,9 @@ export async function getUpdateStatus() {
   return response.result;
 }
 
-export async function getLocalVersion(options?: Partial<JsonRpcCallOptions>): Promise<VersionInfo> {
+export async function getLocalVersion(
+  options?: Partial<JsonRpcCallOptions>,
+): Promise<VersionInfo> {
   const response = await callJsonRpc<VersionInfo>({
     method: "getLocalVersion",
     ...options,
@@ -272,7 +299,10 @@ export interface updateParams {
   components?: UpdateComponents;
 }
 
-export async function checkUpdateComponents(params: updateParams, includePreRelease: boolean) {
+export async function checkUpdateComponents(
+  params: updateParams,
+  includePreRelease: boolean,
+) {
   const response = await callJsonRpc<SystemVersionInfo>({
     method: "checkUpdateComponents",
     params: {

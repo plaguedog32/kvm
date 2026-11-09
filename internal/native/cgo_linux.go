@@ -15,7 +15,7 @@ import (
 
 /*
 #cgo LDFLAGS: -Lcgo/lib -ljknative -llvgl
-#cgo CFLAGS: -Icgo/include
+#cgo CFLAGS: -Icgo -Icgo/include
 #include "ctrl.h"
 #include <stdlib.h>
 
@@ -48,6 +48,18 @@ static inline void jetkvm_cgo_setup_rpc_handler() {
 }
 */
 import "C"
+
+func videoSnapshot() ([]byte, int, int, error) {
+	var data *C.uint8_t
+	var length C.size_t
+	var width, height C.uint32_t
+	ret := C.video_snapshot(&data, &length, &width, &height, 2500)
+	if ret != 0 {
+		return nil, 0, 0, fmt.Errorf("fresh HDMI frame capture failed (errno %d)", int(ret))
+	}
+	defer C.free(unsafe.Pointer(data))
+	return C.GoBytes(unsafe.Pointer(data), C.int(length)), int(width), int(height), nil
+}
 
 var (
 	cgoLock sync.Mutex

@@ -66,6 +66,7 @@ func Main() {
 	// initialize usb gadget
 	setProcTitle("initUsbGadget")
 	initUsbGadget()
+	go getGuestService().manager.Run(appCtx)
 
 	setProcTitle("initNative")
 	initNative(systemVersionLocal, appVersionLocal)

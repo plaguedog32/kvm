@@ -3,6 +3,7 @@ import { useClose } from "@headlessui/react";
 import { ExclamationCircleIcon } from "@heroicons/react/16/solid";
 import { LuCornerDownLeft, LuEye, LuEyeOff } from "react-icons/lu";
 
+import { guestClipboard, guestStatus } from "@/utils/guest";
 import { cx } from "@/cva.config";
 import { m } from "@localizations/messages.js";
 import { useHidStore, useSettingsStore, useUiStore } from "@hooks/stores";
@@ -19,11 +20,67 @@ import { TextAreaWithLabel } from "@components/TextArea";
 // uint32 max value / 4
 const pasteMaxLength = 1073741824;
 const defaultDelay = 20;
+let pendingGuestPaste: AbortController | null = null;
 
 export default function PasteModal() {
   const TextAreaRef = useRef<HTMLTextAreaElement>(null);
   const { isPasteInProgress } = useHidStore();
   const [textValue, setTextValue] = useState("");
+  const [useGuest, setUseGuest] = useState(false);
+  const [guestBusy, setGuestBusy] = useState(false);
+  const guestAbort = useRef<AbortController | null>(null);
+  const guestAction = useRef<"get" | "paste" | null>(null);
+  const confirmDelivery = useRef<(() => Promise<void>) | null>(null);
+  useEffect(() => {
+    let active = true;
+    void guestStatus()
+      .then(state => {
+        if (active) setUseGuest(state.connected);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      if (guestAction.current === "get") guestAbort.current?.abort();
+    };
+  }, []);
+  const guestOperation = useCallback(
+    async (action: "get" | "paste") => {
+      if (guestAbort.current || (action === "paste" && pendingGuestPaste)) return;
+      const controller = new AbortController();
+      guestAbort.current = controller;
+      guestAction.current = action;
+      if (action === "paste") {
+        pendingGuestPaste = controller;
+        useHidStore.getState().setPasteModeEnabled(true);
+      }
+      setGuestBusy(true);
+      confirmDelivery.current = null;
+      try {
+        const result = await guestClipboard(
+          action,
+          action === "get" ? "" : textValue,
+          controller.signal,
+          {
+            onExport: confirm => {
+              confirmDelivery.current = confirm;
+            },
+          },
+        );
+        if (action === "get" && !controller.signal.aborted) setTextValue(result);
+      } catch {
+        notifications.error(m.guest_operation_failed());
+      } finally {
+        guestAbort.current = null;
+        guestAction.current = null;
+        if (pendingGuestPaste === controller) {
+          pendingGuestPaste = null;
+          useHidStore.getState().setPasteModeEnabled(false);
+        }
+        setGuestBusy(false);
+      }
+    },
+    [textValue],
+  );
   const [hideText, setHideText] = useState(false);
   const { setDisableVideoFocusTrap } = useUiStore();
 
@@ -54,6 +111,8 @@ export default function PasteModal() {
   }, [send, setKeyboardLayout]);
 
   const onCancelPasteMode = useCallback(() => {
+    pendingGuestPaste?.abort();
+    guestAbort.current?.abort();
     void cancelExecuteMacro();
     setDisableVideoFocusTrap(false);
     setInvalidChars([]);
@@ -74,6 +133,10 @@ export default function PasteModal() {
   );
 
   const onConfirmPaste = useCallback(async () => {
+    if (useGuest) {
+      await guestOperation("paste");
+      return;
+    }
     if (!selectedKeyboard) return;
 
     const text = textValue;
@@ -125,7 +188,7 @@ export default function PasteModal() {
       console.error("Failed to paste text:", error);
       notifications.error(m.paste_modal_failed_paste({ error: String(error) }));
     }
-  }, [selectedKeyboard, executeMacro, delay, textValue]);
+  }, [selectedKeyboard, executeMacro, delay, textValue, useGuest, guestOperation]);
 
   useEffect(() => {
     TextAreaRef.current?.focus();
@@ -138,6 +201,42 @@ export default function PasteModal() {
           <div className="h-full space-y-4">
             <div className="space-y-4">
               <SettingsPageHeader title={m.paste_text()} description={m.paste_text_description()} />
+              <label className="flex gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={useGuest}
+                  disabled={guestBusy}
+                  onChange={e => setUseGuest(e.target.checked)}
+                />
+                {m.guest_use_clipboard()}
+              </label>
+              {useGuest && (
+                <div className="space-y-2">
+                  <p className="text-xs text-slate-500">{m.guest_paste_note()}</p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="SM"
+                      theme="light"
+                      text={m.guest_get_clipboard()}
+                      disabled={guestBusy}
+                      onClick={() => void guestOperation("get")}
+                    />
+                    <Button
+                      size="SM"
+                      theme="light"
+                      text={m.guest_copy_local()}
+                      disabled={guestBusy}
+                      onClick={() => {
+                        const confirm = confirmDelivery.current;
+                        void navigator.clipboard
+                          .writeText(textValue)
+                          .then(() => confirm?.())
+                          .catch(() => notifications.error(m.guest_operation_failed()));
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div
                 className="animate-fadeIn space-y-2 opacity-0"
@@ -197,6 +296,7 @@ export default function PasteModal() {
                           }
                         }}
                         onChange={e => {
+                          confirmDelivery.current = null;
                           const value = e.target.value;
                           setTextValue(value);
                           updateInvalidChars(value);
@@ -204,7 +304,7 @@ export default function PasteModal() {
                       />
                     </div>
 
-                    {invalidChars.length > 0 && (
+                    {!useGuest && invalidChars.length > 0 && (
                       <div className="mt-2 flex items-center gap-x-2">
                         <ExclamationCircleIcon className="h-4 w-4 text-red-500 dark:text-red-400" />
                         <span className="text-xs text-red-500 dark:text-red-400">
@@ -233,7 +333,10 @@ export default function PasteModal() {
                       <div className="mt-2 flex items-center gap-x-2">
                         <ExclamationCircleIcon className="h-4 w-4 text-red-500 dark:text-red-400" />
                         <span className="text-xs text-red-500 dark:text-red-400">
-                          {m.paste_modal_delay_out_of_range({ min: 50, max: 65534 })}
+                          {m.paste_modal_delay_out_of_range({
+                            min: 50,
+                            max: 65534,
+                          })}
                         </span>
                       </div>
                     ))}
@@ -270,7 +373,7 @@ export default function PasteModal() {
             size="SM"
             theme="primary"
             text={m.paste_modal_confirm_paste()}
-            disabled={isPasteInProgress}
+            disabled={isPasteInProgress || guestBusy}
             onClick={onConfirmPaste}
             LeadingIcon={LuCornerDownLeft}
           />

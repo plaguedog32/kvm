@@ -89,6 +89,7 @@ func (u *UsbGadget) isGadgetConfigItemEnabled(itemKey string) bool {
 }
 
 func (u *UsbGadget) loadGadgetConfig() {
+	u.loadGuestHIDConfig()
 	if u.customConfig.isEmpty {
 		u.log.Trace().Msg("using default gadget config")
 		return
@@ -123,6 +124,25 @@ func (u *UsbGadget) SetGadgetDevices(devices *Devices) {
 	}
 
 	u.enabledDevices = *devices
+	u.loadGuestHIDConfig()
+}
+
+func (u *UsbGadget) loadGuestHIDConfig() {
+	item, ok := u.configMap["wake_hid"]
+	if !ok {
+		return
+	}
+	if item.attrs == nil {
+		item.attrs = make(gadgetAttributes)
+	}
+	if u.enabledDevices.GuestIntegration {
+		item.attrs["report_length"] = "64"
+		item.reportDesc = append([]byte(nil), guestWakeReportDesc...)
+	} else {
+		item.attrs["report_length"] = "1"
+		item.reportDesc = append([]byte(nil), wakeReportDesc...)
+	}
+	u.configMap["wake_hid"] = item
 }
 
 // GetConfigPath returns the path to the config item.

@@ -2,6 +2,12 @@
 
 package native
 
+import "fmt"
+
+func videoSnapshot() ([]byte, int, int, error) {
+	return nil, 0, 0, fmt.Errorf("HDMI capture requires JetKVM hardware")
+}
+
 func panicPlatformNotSupported() {
 	panic("platform not supported")
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
 	"time"
 
 	"github.com/jetkvm/kvm/internal/sync"
@@ -54,6 +55,19 @@ var wakeReportDesc = []byte{
 	0x09, 0x01, //   USAGE (1)
 	0x81, 0x02, //   INPUT (Data,Var,Abs)
 	0xc0, // END_COLLECTION
+}
+
+// Reuse the wake collection without allocating another USB interface or
+// interrupt endpoint. Windows sends output reports over endpoint zero because
+// no_out_endpoint stays enabled; ordinary wake reports are zero-padded.
+var guestWakeReportDesc = []byte{
+	0x06, 0x00, 0xff, // vendor usage page
+	0x09, 0x01, 0xa1, 0x01,
+	0x15, 0x00, 0x26, 0xff, 0x00,
+	0x75, 0x08, 0x95, 0x40,
+	0x09, 0x01, 0x81, 0x02, // 64-byte input
+	0x95, 0x40, 0x09, 0x01, 0x91, 0x02, // 64-byte control output
+	0xc0,
 }
 
 // Source: https://www.kernel.org/doc/Documentation/usb/gadget_hid.txt
@@ -495,7 +509,20 @@ func (u *UsbGadget) wakeWriteHidFile(report byte) error {
 		return err
 	}
 
-	_, err := u.writeWithTimeout(u.wakeHidFile, []byte{report})
+	data := []byte{report}
+	// Consult the live descriptor: the desired setting can already have
+	// changed while the current gadget is waiting to be rebound.
+	if length, err := os.ReadFile(path.Join(u.kvmGadgetPath, "functions", "hid.usb3", "report_length")); err == nil {
+		switch string(bytes.TrimSpace(length)) {
+		case "64":
+			data = make([]byte, 64)
+			data[0] = report
+		case "1":
+		default:
+			return fmt.Errorf("unsupported wake report length")
+		}
+	}
+	_, err := u.writeWithTimeout(u.wakeHidFile, data)
 	if err != nil {
 		u.logWithSuppression("wakeWriteHidFile", 100, u.log, err, "failed to write to hidg3")
 		u.closeWakeHidFileLocked()

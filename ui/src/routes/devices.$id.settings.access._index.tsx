@@ -19,6 +19,8 @@ import notifications from "@/notifications";
 import { DEVICE_API } from "@/ui.config";
 import { isOnDevice } from "@/main";
 import { m } from "@localizations/messages.js";
+import { GuestAccessSettings } from "@components/GuestAccessSettings";
+import { MCPAccessSettings } from "@components/MCPAccessSettings";
 
 import { LocalDevice } from "./devices.$id";
 import { CloudState } from "./adopt";
@@ -318,6 +320,9 @@ export default function SettingsAccessIndexRoute() {
           <div className="h-px w-full bg-slate-800/10 dark:bg-slate-300/20" />
         </>
       )}
+
+      {isOnDevice && <MCPAccessSettings />}
+      {isOnDevice && <GuestAccessSettings />}
 
       <div className="space-y-4">
         <SettingsSectionHeader title="Remote" description={m.access_remote_description()} />

@@ -104,7 +104,7 @@ func onRPCMessage(message webrtc.DataChannelMessage, session *Session) {
 	err := json.Unmarshal(message.Data, &request)
 	if err != nil {
 		jsonRpcLogger.Warn().
-			Str("data", string(message.Data)).
+			Int("bytes", len(message.Data)).
 			Err(err).
 			Msg("Error unmarshalling JSONRPC request")
 
@@ -120,15 +120,16 @@ func onRPCMessage(message webrtc.DataChannelMessage, session *Session) {
 		return
 	}
 
-	scopedLogger := jsonRpcLogger.With().
-		Str("method", request.Method).
-		Interface("params", request.Params).
-		Interface("id", request.ID).Logger()
+	handler, ok := rpcHandlers[request.Method]
+	logContext := jsonRpcLogger.With().Str("method", request.Method).Interface("id", request.ID)
+	if !handler.Sensitive {
+		logContext = logContext.Interface("params", request.Params)
+	}
+	scopedLogger := logContext.Logger()
 
 	scopedLogger.Trace().Msg("Received RPC request")
 	t := time.Now()
 
-	handler, ok := rpcHandlers[request.Method]
 	if !ok {
 		errorResponse := JSONRPCResponse{
 			JSONRPC: "2.0",
@@ -142,9 +143,20 @@ func onRPCMessage(message webrtc.DataChannelMessage, session *Session) {
 		return
 	}
 
-	result, err := callRPCHandler(scopedLogger, handler, request.Params, session)
+	callLogger := scopedLogger
+	if handler.Sensitive {
+		callLogger = zerolog.Nop()
+	}
+	result, err := callRPCHandler(callLogger, handler, request.Params, session)
+	if handler.Sensitive && err != nil {
+		err = errors.New("guest clipboard request failed")
+	}
 	if err != nil {
-		scopedLogger.Error().Err(err).Msg("Error calling RPC handler")
+		if handler.Sensitive {
+			scopedLogger.Error().Msg("Sensitive RPC handler failed")
+		} else {
+			scopedLogger.Error().Err(err).Msg("Error calling RPC handler")
+		}
 		errorResponse := JSONRPCResponse{
 			JSONRPC: "2.0",
 			Error: map[string]any{
@@ -158,7 +170,9 @@ func onRPCMessage(message webrtc.DataChannelMessage, session *Session) {
 		return
 	}
 
-	scopedLogger.Trace().Dur("duration", time.Since(t)).Interface("result", result).Msg("RPC handler returned")
+	if !handler.Sensitive {
+		scopedLogger.Trace().Dur("duration", time.Since(t)).Interface("result", result).Msg("RPC handler returned")
+	}
 
 	response := JSONRPCResponse{
 		JSONRPC: "2.0",
@@ -580,6 +594,7 @@ func rpcSetTLSState(state TLSState) error {
 }
 
 type RPCHandler struct {
+	Sensitive      bool
 	Func           any
 	Params         []string
 	OptionalParams []string
@@ -816,6 +831,7 @@ func rpcSetWakeOnLanDevices(params SetWakeOnLanDevicesParams) error {
 
 // resetConfig resets the config file to defaults. Used internally by OTA updates and native events.
 func resetConfig() error {
+	resetMCPAccess()
 	defaultConfig := getDefaultConfig()
 	config = &defaultConfig
 	if err := SaveConfig(); err != nil {
@@ -835,9 +851,11 @@ var factoryResetPaths = []string{
 	serialSettingsPath,
 	SerialCommandHistoryPath,
 	failsafeDefaultLastCrashPath,
+	mcpAccessPath,
 }
 
 func rpcFactoryReset() error {
+	resetMCPAccess()
 	logger.Info().Msg("Factory reset initiated, removing all user data")
 
 	if config.CloudToken != "" && config.CloudURL != "" {
@@ -1400,6 +1418,8 @@ func rpcDoExecuteKeyboardMacro(ctx context.Context, macro []hidrpc.KeyboardMacro
 }
 
 var rpcHandlers = map[string]RPCHandler{
+	"guestStatus":                {Func: rpcGuestStatus},
+	"guestClipboard":             {Func: rpcGuestClipboard, Params: []string{"args"}, Sensitive: true},
 	"ping":                       {Func: rpcPing},
 	"reboot":                     {Func: rpcReboot, Params: []string{"force"}},
 	"getDeviceID":                {Func: rpcGetDeviceID},

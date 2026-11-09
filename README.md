@@ -49,3 +49,29 @@ The backend is written in Go and is responsible for the KVM device management, t
 ## Frontend
 
 The frontend is written in React and TypeScript and is served by the KVM device. It has three build targets: `device`, `development` and `production`. Development is used for development of the cloud version on your local machine, device is used for building the frontend for the KVM device and production is used for building the frontend for the cloud.
+
+## AI agent control (MCP)
+
+The [built-in MCP server](mcp/README.md) lets an AI client connect directly to the
+device to inspect screenshots, send keyboard/mouse input, mount installation media
+and submit scripts on the attached computer. No local companion is needed, and
+your browser viewer stays connected. Enable token-based access in Settings →
+Access. A Windows installation and setup prompt is included.
+
+With the paired Windows guest companion running, the viewer supports text
+copy/paste anywhere on the focused KVM page except local text fields, terminals,
+settings dialogs and local controls. Shortcuts activate after the companion
+advertises support. Copy sends Ctrl+C and requires a new Windows clipboard
+sequence before reading text. Paste transfers text over paired USB and sends
+Ctrl+V without Enter. These shortcuts require the remote US key layout. Pasted
+line breaks can execute commands in some terminals.
+
+There is no background clipboard polling or clipboard history. A per-viewer
+keyed digest tracks successful local delivery and pastes, preserving remote
+clipboard formats when local text is unchanged. Reads alone do not change it.
+HTTPS browsers can copy in one gesture; HTTP and blocked clipboard permissions
+show a **Copy ready text** button. Until delivery, in-page paste preserves the
+remote copy. Non-text and empty local clipboards use ordinary guest paste.
+Prepared text clears on blur, local editing or device changes. Additional
+shortcuts during a transfer show a busy message; they do not paste stale content.
+Interactive operations wait at most 200 ms for a busy guest channel.

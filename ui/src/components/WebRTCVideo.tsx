@@ -4,6 +4,7 @@ import { useResizeObserver } from "usehooks-ts";
 import { cx } from "@/cva.config";
 import { isWindows } from "@/utils";
 import useKeyboard from "@hooks/useKeyboard";
+import useNativeClipboard, { isLocalClipboardTarget } from "@hooks/useNativeClipboard";
 import useMouse from "@hooks/useMouse";
 import { useDevicePixelRatio } from "@hooks/useDevicePixelRatio";
 import {
@@ -59,7 +60,7 @@ export default function WebRTCVideo({
 
   // Store hooks
   const settings = useSettingsStore();
-  const { handleKeyPress, resetKeyboardState } = useKeyboard();
+  const { handleKeyPress, resetKeyboardState, executeMacro } = useKeyboard();
   const {
     getRelMouseMoveHandler,
     getAbsMouseMoveHandler,
@@ -83,7 +84,7 @@ export default function WebRTCVideo({
   const devicePixelRatio = useDevicePixelRatio();
 
   // OCR mode
-  const { isOcrMode } = useUiStore();
+  const { isOcrMode, disableVideoFocusTrap } = useUiStore();
 
   // RTC related states
   const { peerConnection } = useRTCStore();
@@ -116,6 +117,25 @@ export default function WebRTCVideo({
   const isWindowsClient = useMemo(() => isWindows(), []);
   const lastKeyDownRef = useRef<{ hidKey: number; time: number } | null>(null);
   const altGrLoopRef = useRef(false);
+  const nativeClipboard = useNativeClipboard(isOcrMode || disableVideoFocusTrap, {
+    releaseKeys: () => {
+      lastKeyDownRef.current = null;
+      altGrLoopRef.current = false;
+      void resetKeyboardState();
+    },
+    restoreModifiers: codes => {
+      for (const code of codes) if (keys[code]) void handleKeyPress(keys[code], true);
+    },
+    tapMeta: code => {
+      void handleKeyPress(keys[code], true);
+      void handleKeyPress(keys[code], false);
+    },
+    shortcut: action => {
+      return executeMacro([
+        { keys: [action === "copy" ? "KeyC" : "KeyV"], modifiers: ["ControlLeft"], delay: 50 },
+      ]);
+    },
+  });
 
   useResizeObserver({
     ref: videoElm as React.RefObject<HTMLElement>,
@@ -336,7 +356,7 @@ export default function WebRTCVideo({
 
   const keyDownHandler = useCallback(
     (e: KeyboardEvent) => {
-      if (isOcrMode) return; // Let OCR overlay handle keys
+      if (isOcrMode || isLocalClipboardTarget(e.target)) return;
       e.preventDefault();
       const code = getAdjustedKeyCode(e);
       const hidKey = keys[code];
@@ -410,7 +430,7 @@ export default function WebRTCVideo({
 
   const keyUpHandler = useCallback(
     async (e: KeyboardEvent) => {
-      if (isOcrMode) return; // Let OCR overlay handle keys
+      if (isOcrMode || isLocalClipboardTarget(e.target)) return;
       e.preventDefault();
       const code = getAdjustedKeyCode(e);
       const hidKey = keys[code];
@@ -711,6 +731,29 @@ export default function WebRTCVideo({
 
       <div ref={containerRef} className="h-full overflow-hidden">
         <div className="relative h-full">
+          {(nativeClipboard.busy || nativeClipboard.copyPending) && (
+            <div
+              className="absolute top-2 right-2 z-40 flex items-center gap-3 rounded bg-white px-3 py-2 text-sm shadow dark:bg-slate-900"
+              data-local-clipboard
+              data-guest-copy-ready
+              onKeyDown={e => e.stopPropagation()}
+              onKeyUp={e => e.stopPropagation()}
+              role="status"
+            >
+              {nativeClipboard.busy
+                ? m.guest_clipboard_transferring()
+                : m.guest_clipboard_copy_ready_note()}
+              {nativeClipboard.copyPending && (
+                <button
+                  type="button"
+                  className="rounded bg-blue-600 px-3 py-1 text-white"
+                  onClick={nativeClipboard.copyReady}
+                >
+                  {m.guest_clipboard_copy_ready()}
+                </button>
+              )}
+            </div>
+          )}
           <div
             className={cx(
               "absolute inset-0 z-0 bg-blue-50/40 opacity-80 dark:bg-slate-800/40",

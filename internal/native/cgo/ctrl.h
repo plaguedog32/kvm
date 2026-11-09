@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include "snapshot.h"
 
 typedef struct
 {

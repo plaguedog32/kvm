@@ -2356,6 +2356,66 @@ func (x *VideoFrame) GetDurationNs() int64 {
 	return 0
 }
 
+type VideoSnapshotResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Jpeg          []byte                 `protobuf:"bytes,1,opt,name=jpeg,proto3" json:"jpeg,omitempty"`
+	Width         int32                  `protobuf:"varint,2,opt,name=width,proto3" json:"width,omitempty"`
+	Height        int32                  `protobuf:"varint,3,opt,name=height,proto3" json:"height,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VideoSnapshotResponse) Reset() {
+	*x = VideoSnapshotResponse{}
+	mi := &file_internal_native_proto_native_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VideoSnapshotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VideoSnapshotResponse) ProtoMessage() {}
+
+func (x *VideoSnapshotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_native_proto_native_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VideoSnapshotResponse.ProtoReflect.Descriptor instead.
+func (*VideoSnapshotResponse) Descriptor() ([]byte, []int) {
+	return file_internal_native_proto_native_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *VideoSnapshotResponse) GetJpeg() []byte {
+	if x != nil {
+		return x.Jpeg
+	}
+	return nil
+}
+
+func (x *VideoSnapshotResponse) GetWidth() int32 {
+	if x != nil {
+		return x.Width
+	}
+	return 0
+}
+
+func (x *VideoSnapshotResponse) GetHeight() int32 {
+	if x != nil {
+		return x.Height
+	}
+	return 0
+}
+
 var File_internal_native_proto_native_proto protoreflect.FileDescriptor
 
 const file_internal_native_proto_native_proto_rawDesc = "" +
@@ -2490,7 +2550,11 @@ const file_internal_native_proto_native_proto_rawDesc = "" +
 	"VideoFrame\x12\x14\n" +
 	"\x05frame\x18\x01 \x01(\fR\x05frame\x12\x1f\n" +
 	"\vduration_ns\x18\x02 \x01(\x03R\n" +
-	"durationNs2\x8a\x13\n" +
+	"durationNs\"Y\n" +
+	"\x15VideoSnapshotResponse\x12\x12\n" +
+	"\x04jpeg\x18\x01 \x01(\fR\x04jpeg\x12\x14\n" +
+	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
+	"\x06height\x18\x03 \x01(\x05R\x06height2\xc9\x13\n" +
 	"\rNativeService\x12:\n" +
 	"\aIsReady\x12\x16.native.IsReadyRequest\x1a\x17.native.IsReadyResponse\x12D\n" +
 	"\x11VideoSetSleepMode\x12 .native.VideoSetSleepModeRequest\x1a\r.native.Empty\x12E\n" +
@@ -2526,7 +2590,8 @@ const file_internal_native_proto_native_proto_rawDesc = "" +
 	"\x10SwitchToScreenIf\x12\x1f.native.SwitchToScreenIfRequest\x1a\r.native.Empty\x12T\n" +
 	"\x19SwitchToScreenIfDifferent\x12(.native.SwitchToScreenIfDifferentRequest\x1a\r.native.Empty\x12A\n" +
 	"!DoNotUseThisIsForCrashTestingOnly\x12\r.native.Empty\x1a\r.native.Empty\x12.\n" +
-	"\fStreamEvents\x12\r.native.Empty\x1a\r.native.Event0\x01B-Z+github.com/jetkvm/kvm/internal/native/protob\x06proto3"
+	"\fStreamEvents\x12\r.native.Empty\x1a\r.native.Event0\x01\x12=\n" +
+	"\rVideoSnapshot\x12\r.native.Empty\x1a\x1d.native.VideoSnapshotResponseB-Z+github.com/jetkvm/kvm/internal/native/protob\x06proto3"
 
 var (
 	file_internal_native_proto_native_proto_rawDescOnce sync.Once
@@ -2540,7 +2605,7 @@ func file_internal_native_proto_native_proto_rawDescGZIP() []byte {
 	return file_internal_native_proto_native_proto_rawDescData
 }
 
-var file_internal_native_proto_native_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
+var file_internal_native_proto_native_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_internal_native_proto_native_proto_goTypes = []any{
 	(*Empty)(nil),                                 // 0: native.Empty
 	(*IsReadyRequest)(nil),                        // 1: native.IsReadyRequest
@@ -2590,6 +2655,7 @@ var file_internal_native_proto_native_proto_goTypes = []any{
 	(*SwitchToScreenIfDifferentRequest)(nil),      // 45: native.SwitchToScreenIfDifferentRequest
 	(*Event)(nil),                                 // 46: native.Event
 	(*VideoFrame)(nil),                            // 47: native.VideoFrame
+	(*VideoSnapshotResponse)(nil),                 // 48: native.VideoSnapshotResponse
 }
 var file_internal_native_proto_native_proto_depIdxs = []int32{
 	3,  // 0: native.Event.video_state:type_name -> native.VideoState
@@ -2628,42 +2694,44 @@ var file_internal_native_proto_native_proto_depIdxs = []int32{
 	45, // 33: native.NativeService.SwitchToScreenIfDifferent:input_type -> native.SwitchToScreenIfDifferentRequest
 	0,  // 34: native.NativeService.DoNotUseThisIsForCrashTestingOnly:input_type -> native.Empty
 	0,  // 35: native.NativeService.StreamEvents:input_type -> native.Empty
-	2,  // 36: native.NativeService.IsReady:output_type -> native.IsReadyResponse
-	0,  // 37: native.NativeService.VideoSetSleepMode:output_type -> native.Empty
-	5,  // 38: native.NativeService.VideoGetSleepMode:output_type -> native.VideoGetSleepModeResponse
-	6,  // 39: native.NativeService.VideoSleepModeSupported:output_type -> native.VideoSleepModeSupportedResponse
-	0,  // 40: native.NativeService.VideoSetQualityFactor:output_type -> native.Empty
-	8,  // 41: native.NativeService.VideoGetQualityFactor:output_type -> native.VideoGetQualityFactorResponse
-	0,  // 42: native.NativeService.VideoSetCodecType:output_type -> native.Empty
-	10, // 43: native.NativeService.VideoGetCodecType:output_type -> native.VideoGetCodecTypeResponse
-	0,  // 44: native.NativeService.VideoSetEDID:output_type -> native.Empty
-	12, // 45: native.NativeService.VideoGetEDID:output_type -> native.VideoGetEDIDResponse
-	13, // 46: native.NativeService.VideoLogStatus:output_type -> native.VideoLogStatusResponse
-	0,  // 47: native.NativeService.VideoStop:output_type -> native.Empty
-	0,  // 48: native.NativeService.VideoStart:output_type -> native.Empty
-	14, // 49: native.NativeService.GetLVGLVersion:output_type -> native.GetLVGLVersionResponse
-	16, // 50: native.NativeService.UIObjHide:output_type -> native.UIObjHideResponse
-	18, // 51: native.NativeService.UIObjShow:output_type -> native.UIObjShowResponse
-	0,  // 52: native.NativeService.UISetVar:output_type -> native.Empty
-	21, // 53: native.NativeService.UIGetVar:output_type -> native.UIGetVarResponse
-	23, // 54: native.NativeService.UIObjAddState:output_type -> native.UIObjAddStateResponse
-	25, // 55: native.NativeService.UIObjClearState:output_type -> native.UIObjClearStateResponse
-	27, // 56: native.NativeService.UIObjAddFlag:output_type -> native.UIObjAddFlagResponse
-	29, // 57: native.NativeService.UIObjClearFlag:output_type -> native.UIObjClearFlagResponse
-	31, // 58: native.NativeService.UIObjSetOpacity:output_type -> native.UIObjSetOpacityResponse
-	33, // 59: native.NativeService.UIObjFadeIn:output_type -> native.UIObjFadeInResponse
-	35, // 60: native.NativeService.UIObjFadeOut:output_type -> native.UIObjFadeOutResponse
-	37, // 61: native.NativeService.UIObjSetLabelText:output_type -> native.UIObjSetLabelTextResponse
-	39, // 62: native.NativeService.UIObjSetImageSrc:output_type -> native.UIObjSetImageSrcResponse
-	41, // 63: native.NativeService.DisplaySetRotation:output_type -> native.DisplaySetRotationResponse
-	0,  // 64: native.NativeService.UpdateLabelIfChanged:output_type -> native.Empty
-	0,  // 65: native.NativeService.UpdateLabelAndChangeVisibility:output_type -> native.Empty
-	0,  // 66: native.NativeService.SwitchToScreenIf:output_type -> native.Empty
-	0,  // 67: native.NativeService.SwitchToScreenIfDifferent:output_type -> native.Empty
-	0,  // 68: native.NativeService.DoNotUseThisIsForCrashTestingOnly:output_type -> native.Empty
-	46, // 69: native.NativeService.StreamEvents:output_type -> native.Event
-	36, // [36:70] is the sub-list for method output_type
-	2,  // [2:36] is the sub-list for method input_type
+	0,  // 36: native.NativeService.VideoSnapshot:input_type -> native.Empty
+	2,  // 37: native.NativeService.IsReady:output_type -> native.IsReadyResponse
+	0,  // 38: native.NativeService.VideoSetSleepMode:output_type -> native.Empty
+	5,  // 39: native.NativeService.VideoGetSleepMode:output_type -> native.VideoGetSleepModeResponse
+	6,  // 40: native.NativeService.VideoSleepModeSupported:output_type -> native.VideoSleepModeSupportedResponse
+	0,  // 41: native.NativeService.VideoSetQualityFactor:output_type -> native.Empty
+	8,  // 42: native.NativeService.VideoGetQualityFactor:output_type -> native.VideoGetQualityFactorResponse
+	0,  // 43: native.NativeService.VideoSetCodecType:output_type -> native.Empty
+	10, // 44: native.NativeService.VideoGetCodecType:output_type -> native.VideoGetCodecTypeResponse
+	0,  // 45: native.NativeService.VideoSetEDID:output_type -> native.Empty
+	12, // 46: native.NativeService.VideoGetEDID:output_type -> native.VideoGetEDIDResponse
+	13, // 47: native.NativeService.VideoLogStatus:output_type -> native.VideoLogStatusResponse
+	0,  // 48: native.NativeService.VideoStop:output_type -> native.Empty
+	0,  // 49: native.NativeService.VideoStart:output_type -> native.Empty
+	14, // 50: native.NativeService.GetLVGLVersion:output_type -> native.GetLVGLVersionResponse
+	16, // 51: native.NativeService.UIObjHide:output_type -> native.UIObjHideResponse
+	18, // 52: native.NativeService.UIObjShow:output_type -> native.UIObjShowResponse
+	0,  // 53: native.NativeService.UISetVar:output_type -> native.Empty
+	21, // 54: native.NativeService.UIGetVar:output_type -> native.UIGetVarResponse
+	23, // 55: native.NativeService.UIObjAddState:output_type -> native.UIObjAddStateResponse
+	25, // 56: native.NativeService.UIObjClearState:output_type -> native.UIObjClearStateResponse
+	27, // 57: native.NativeService.UIObjAddFlag:output_type -> native.UIObjAddFlagResponse
+	29, // 58: native.NativeService.UIObjClearFlag:output_type -> native.UIObjClearFlagResponse
+	31, // 59: native.NativeService.UIObjSetOpacity:output_type -> native.UIObjSetOpacityResponse
+	33, // 60: native.NativeService.UIObjFadeIn:output_type -> native.UIObjFadeInResponse
+	35, // 61: native.NativeService.UIObjFadeOut:output_type -> native.UIObjFadeOutResponse
+	37, // 62: native.NativeService.UIObjSetLabelText:output_type -> native.UIObjSetLabelTextResponse
+	39, // 63: native.NativeService.UIObjSetImageSrc:output_type -> native.UIObjSetImageSrcResponse
+	41, // 64: native.NativeService.DisplaySetRotation:output_type -> native.DisplaySetRotationResponse
+	0,  // 65: native.NativeService.UpdateLabelIfChanged:output_type -> native.Empty
+	0,  // 66: native.NativeService.UpdateLabelAndChangeVisibility:output_type -> native.Empty
+	0,  // 67: native.NativeService.SwitchToScreenIf:output_type -> native.Empty
+	0,  // 68: native.NativeService.SwitchToScreenIfDifferent:output_type -> native.Empty
+	0,  // 69: native.NativeService.DoNotUseThisIsForCrashTestingOnly:output_type -> native.Empty
+	46, // 70: native.NativeService.StreamEvents:output_type -> native.Event
+	48, // 71: native.NativeService.VideoSnapshot:output_type -> native.VideoSnapshotResponse
+	37, // [37:72] is the sub-list for method output_type
+	2,  // [2:37] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -2686,7 +2754,7 @@ func file_internal_native_proto_native_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_native_proto_native_proto_rawDesc), len(file_internal_native_proto_native_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   48,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

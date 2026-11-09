@@ -16,6 +16,7 @@ func effectiveUsbDevices() *usbgadget.Devices {
 	}
 
 	devices := *config.UsbDevices
+	devices.GuestIntegration = getGuestService().access.Enabled()
 	return &devices
 }
 

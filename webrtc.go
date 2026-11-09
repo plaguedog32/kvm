@@ -25,6 +25,9 @@ import (
 )
 
 type Session struct {
+	guestClipboardMu         sync.Mutex
+	guestClipboard           *guestClipboardJob
+	guestClipboardExport     *guestClipboardExport
 	peerConnection           *webrtc.PeerConnection
 	VideoTrack               *webrtc.TrackLocalStaticSample
 	AudioTrack               *webrtc.TrackLocalStaticSample

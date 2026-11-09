@@ -1,5 +1,7 @@
 package native
 
+import "context"
+
 // NativeInterface defines the interface that both Native and NativeProxy implement
 type NativeInterface interface {
 	Start() error
@@ -15,6 +17,7 @@ type NativeInterface interface {
 	VideoLogStatus() (string, error)
 	VideoStop() error
 	VideoStart() error
+	VideoSnapshot(context.Context) (*Snapshot, error)
 	GetLVGLVersion() (string, error)
 	UIObjHide(objName string) (bool, error)
 	UIObjShow(objName string) (bool, error)

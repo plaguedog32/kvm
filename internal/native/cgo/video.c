@@ -26,6 +26,7 @@
 #include "video.h"
 #include "ctrl.h"
 #include "log.h"
+#include "snapshot.h"
 
 #define VIDEO_DEV "/dev/video0"
 #define SUB_DEV "/dev/v4l-subdev2"
@@ -729,6 +730,19 @@ void *run_video_stream(void *arg)
             log_trace("got frame, bytesused = %d", tmp_plane.bytesused);
             MB_BLK blk = RK_MPI_MMZ_Fd2Handle(tmp_plane.m.fd);
             assert(blk != RK_NULL);
+            // Copy only an explicitly requested fresh frame, before re-queuing
+            // the DMA buffer. WebRTC continues using its existing encoder.
+            if (video_snapshot_requested()) {
+                const uint8_t *raw = NULL;
+                if (RK_MPI_SYS_MmzFlushCache(blk, RK_TRUE) == RK_SUCCESS)
+                    raw = RK_MPI_MB_Handle2VirAddr(blk);
+                uint32_t stride = fmt.fmt.pix_mp.plane_fmt[0].bytesperline;
+                if (stride == 0) stride = RK_ALIGN_16(width) * 2;
+                size_t offset = tmp_plane.data_offset;
+                video_snapshot_submit(raw ? raw + offset : NULL,
+                    tmp_plane.bytesused >= offset ? tmp_plane.bytesused - offset : 0,
+                    width, height, stride);
+            }
             stFrame.stVFrame.pMbBlk = blk;
             stFrame.stVFrame.u32TimeRef = num;
             stFrame.stVFrame.u64PTS = get_us();

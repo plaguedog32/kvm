@@ -4,6 +4,7 @@ package usbgadget
 
 import (
 	"context"
+	"io"
 	"maps"
 	"os"
 	"path"
@@ -23,6 +24,9 @@ type Devices struct {
 	MassStorage   bool `json:"mass_storage"`
 	SerialConsole bool `json:"serial_console"`
 	Audio         bool `json:"audio"`
+	// GuestIntegration is owned by the separate pairing configuration. Older
+	// USB-settings clients must not be able to accidentally overwrite it.
+	GuestIntegration bool `json:"-"`
 }
 
 // Config is a struct that represents the customizations for a USB gadget.
@@ -53,10 +57,12 @@ type KeysDownState struct {
 
 // UsbGadget is a struct that represents a USB gadget.
 type UsbGadget struct {
-	name          string
-	udc           string
-	kvmGadgetPath string
-	configC1Path  string
+	guestConnectionLock sync.Mutex
+	guestConnection     io.Closer
+	name                string
+	udc                 string
+	kvmGadgetPath       string
+	configC1Path        string
 
 	configMap    map[string]gadgetConfigItem
 	customConfig Config
@@ -187,6 +193,7 @@ func deepCopyConfigMap(configMap map[string]gadgetConfigItem) map[string]gadgetC
 
 // Close cleans up resources used by the USB gadget
 func (u *UsbGadget) Close() error {
+	u.closeGuestConnection()
 	// Cancel keyboard state context
 	if u.keyboardStateCancel != nil {
 		u.keyboardStateCancel()
@@ -227,6 +234,7 @@ func (u *UsbGadget) Close() error {
 // After a UDC rebind, previously open /dev/hidg* handles may point to a stale
 // transport endpoint and must be reopened before use.
 func (u *UsbGadget) ResetHIDFiles() {
+	u.closeGuestConnection()
 	u.keyboardLock.Lock()
 	u.closeKeyboardHidFileLocked()
 	unlockWithLog(&u.keyboardLock, u.log, "keyboardHidFile reset")

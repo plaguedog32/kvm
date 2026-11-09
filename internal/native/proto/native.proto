@@ -49,6 +49,9 @@ service NativeService {
 
   // Events stream
   rpc StreamEvents(Empty) returns (stream Event);
+
+  // On-demand HDMI still capture; does not create a viewer session.
+  rpc VideoSnapshot(Empty) returns (VideoSnapshotResponse);
 }
 
 // Messages
@@ -264,4 +267,10 @@ message Event {
 message VideoFrame {
   bytes frame = 1;
   int64 duration_ns = 2;
+}
+
+message VideoSnapshotResponse {
+  bytes jpeg = 1;
+  int32 width = 2;
+  int32 height = 3;
 }

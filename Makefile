@@ -180,7 +180,7 @@ build_dev:
 		$(MAKE) _build_dev_inner VERSION_DEV=$(VERSION_DEV) SKIP_NATIVE_IF_EXISTS=$(SKIP_NATIVE_IF_EXISTS); \
 	fi
 
-_build_dev_inner: build_native
+_build_dev_inner: build_native build_guest
 	@echo "Building... $(VERSION_DEV)"
 	$(GO_CMD) build \
 		-ldflags="$(GO_LDFLAGS) -X $(KVM_PKG_NAME).builtAppVersion=$(VERSION_DEV)" \
@@ -323,7 +323,7 @@ build_release:
 		$(MAKE) _build_release_inner VERSION=$(VERSION) SKIP_NATIVE_IF_EXISTS=$(SKIP_NATIVE_IF_EXISTS); \
 	fi
 
-_build_release_inner: build_native
+_build_release_inner: build_native build_guest
 	@echo "Building release..."
 	$(GO_CMD) build \
 		-ldflags="$(GO_LDFLAGS) -X $(KVM_PKG_NAME).builtAppVersion=$(VERSION)" \
@@ -430,3 +430,7 @@ bump-version:
 		git commit -m "Bump version to $$next_ver" && \
 		git push && \
 		echo "✓ Bumped to $$next_ver"
+
+.PHONY: build_guest
+build_guest:
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags="-s -w" -o internal/guestassets/files/jetkvm-guest.exe ./cmd/jetkvm-guest

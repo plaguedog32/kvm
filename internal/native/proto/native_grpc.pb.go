@@ -53,6 +53,7 @@ const (
 	NativeService_SwitchToScreenIfDifferent_FullMethodName         = "/native.NativeService/SwitchToScreenIfDifferent"
 	NativeService_DoNotUseThisIsForCrashTestingOnly_FullMethodName = "/native.NativeService/DoNotUseThisIsForCrashTestingOnly"
 	NativeService_StreamEvents_FullMethodName                      = "/native.NativeService/StreamEvents"
+	NativeService_VideoSnapshot_FullMethodName                     = "/native.NativeService/VideoSnapshot"
 )
 
 // NativeServiceClient is the client API for NativeService service.
@@ -100,6 +101,8 @@ type NativeServiceClient interface {
 	DoNotUseThisIsForCrashTestingOnly(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	// Events stream
 	StreamEvents(ctx context.Context, in *Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Event], error)
+	// On-demand HDMI still capture; does not create a viewer session.
+	VideoSnapshot(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*VideoSnapshotResponse, error)
 }
 
 type nativeServiceClient struct {
@@ -459,6 +462,16 @@ func (c *nativeServiceClient) StreamEvents(ctx context.Context, in *Empty, opts 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NativeService_StreamEventsClient = grpc.ServerStreamingClient[Event]
 
+func (c *nativeServiceClient) VideoSnapshot(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*VideoSnapshotResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VideoSnapshotResponse)
+	err := c.cc.Invoke(ctx, NativeService_VideoSnapshot_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NativeServiceServer is the server API for NativeService service.
 // All implementations must embed UnimplementedNativeServiceServer
 // for forward compatibility.
@@ -504,6 +517,8 @@ type NativeServiceServer interface {
 	DoNotUseThisIsForCrashTestingOnly(context.Context, *Empty) (*Empty, error)
 	// Events stream
 	StreamEvents(*Empty, grpc.ServerStreamingServer[Event]) error
+	// On-demand HDMI still capture; does not create a viewer session.
+	VideoSnapshot(context.Context, *Empty) (*VideoSnapshotResponse, error)
 	mustEmbedUnimplementedNativeServiceServer()
 }
 
@@ -615,6 +630,9 @@ func (UnimplementedNativeServiceServer) DoNotUseThisIsForCrashTestingOnly(contex
 }
 func (UnimplementedNativeServiceServer) StreamEvents(*Empty, grpc.ServerStreamingServer[Event]) error {
 	return status.Error(codes.Unimplemented, "method StreamEvents not implemented")
+}
+func (UnimplementedNativeServiceServer) VideoSnapshot(context.Context, *Empty) (*VideoSnapshotResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method VideoSnapshot not implemented")
 }
 func (UnimplementedNativeServiceServer) mustEmbedUnimplementedNativeServiceServer() {}
 func (UnimplementedNativeServiceServer) testEmbeddedByValue()                       {}
@@ -1242,6 +1260,24 @@ func _NativeService_StreamEvents_Handler(srv interface{}, stream grpc.ServerStre
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type NativeService_StreamEventsServer = grpc.ServerStreamingServer[Event]
 
+func _NativeService_VideoSnapshot_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NativeServiceServer).VideoSnapshot(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: NativeService_VideoSnapshot_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NativeServiceServer).VideoSnapshot(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // NativeService_ServiceDesc is the grpc.ServiceDesc for NativeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1380,6 +1416,10 @@ var NativeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DoNotUseThisIsForCrashTestingOnly",
 			Handler:    _NativeService_DoNotUseThisIsForCrashTestingOnly_Handler,
+		},
+		{
+			MethodName: "VideoSnapshot",
+			Handler:    _NativeService_VideoSnapshot_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

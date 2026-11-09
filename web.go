@@ -215,6 +215,9 @@ func setupRouter() *gin.Engine {
 		protected.GET("/diagnostics", handleDiagnosticsDownload)
 	}
 
+	setupMCPRoutes(r, protected)
+	setupGuestRoutes(protected)
+
 	// Catch-all route for SPA
 	r.NoRoute(func(c *gin.Context) {
 		if c.Request.Method == "GET" && c.NegotiateFormat(gin.MIMEHTML) == gin.MIMEHTML {
