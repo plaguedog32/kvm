@@ -33,13 +33,36 @@ func TestPrivateNetworkRetainsLocalMDNSResolutionAndSocketOptions(t *testing.T) 
 			t.Fatal("local mDNS address was rejected", err)
 		}
 	}
-	socket, err := n.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP("127.0.0.1")})
+	socket, err := n.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP("224.0.0.251")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer socket.Close()
 	if err := ipv4.NewPacketConn(socket).SetMulticastLoopback(true); err != nil {
 		t.Fatal("multicast socket controls were lost", err)
+	}
+}
+
+func TestPrivateUnicastSocketDoesNotExposeRawWrites(t *testing.T) {
+	n, err := NewPrivateNet()
+	if err != nil {
+		t.Fatal(err)
+	}
+	socket, err := n.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP("127.0.0.1")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer socket.Close()
+	if _, err := socket.(privateUDP).SyscallConn(); err != ErrDisabled {
+		t.Fatalf("unicast raw socket access: %v", err)
+	}
+	packet, err := n.ListenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packet.Close()
+	if _, err := packet.(privatePacket).SyscallConn(); err != ErrDisabled {
+		t.Fatalf("unicast raw packet access: %v", err)
 	}
 }
 func TestPrivateICENetworkStillTransfersUDP(t *testing.T) {

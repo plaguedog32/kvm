@@ -34,9 +34,15 @@ func packetAddressAllowed(addr net.Addr) bool {
 	return PrivateIP(host) || (err == nil && ip.IsLinkLocalMulticast())
 }
 
-type privatePacket struct{ net.PacketConn }
+type privatePacket struct {
+	net.PacketConn
+	multicast bool
+}
 
 func (c privatePacket) SyscallConn() (syscall.RawConn, error) {
+	if !c.multicast {
+		return nil, ErrDisabled
+	}
 	raw, ok := c.PacketConn.(syscall.Conn)
 	if !ok {
 		return nil, syscall.EINVAL
@@ -78,11 +84,26 @@ func (c privatePacket) WriteTo(b []byte, addr net.Addr) (int, error) {
 	return c.PacketConn.WriteTo(b, addr)
 }
 
-type privateUDP struct{ transport.UDPConn }
+type privateUDP struct {
+	transport.UDPConn
+	multicast bool
+}
 
-// Multicast helpers need raw socket control for local group/options setup.
-// ICE packet writes still pass through the numeric destination checks below.
+// Only multicast-bound sockets expose raw controls: x/net can also use these
+// controls to write packets without calling the guarded WriteTo methods.
+func multicastSocket(addr net.Addr) bool {
+	if addr == nil {
+		return false
+	}
+	host, _, err := net.SplitHostPort(addr.String())
+	ip, parseErr := netip.ParseAddr(host)
+	return err == nil && parseErr == nil && ip.IsLinkLocalMulticast()
+}
+
 func (c privateUDP) SyscallConn() (syscall.RawConn, error) {
+	if !c.multicast {
+		return nil, ErrDisabled
+	}
 	raw, ok := c.UDPConn.(syscall.Conn)
 	if !ok {
 		return nil, syscall.EINVAL
@@ -124,14 +145,17 @@ func (n *privateNet) ListenPacket(network, address string) (net.PacketConn, erro
 	if err != nil {
 		return nil, err
 	}
-	return privatePacket{c}, nil
+	// Go binds multicast listeners to a wildcard address internally. Preserve
+	// the requested binding rather than inspecting the resulting LocalAddr.
+	addr, parseErr := netip.ParseAddrPort(address)
+	return privatePacket{PacketConn: c, multicast: parseErr == nil && addr.Addr().IsLinkLocalMulticast()}, nil
 }
 func (n *privateNet) ListenUDP(network string, addr *net.UDPAddr) (transport.UDPConn, error) {
 	c, err := n.Net.ListenUDP(network, addr)
 	if err != nil {
 		return nil, err
 	}
-	return privateUDP{c}, nil
+	return privateUDP{UDPConn: c, multicast: multicastSocket(addr)}, nil
 }
 func (n *privateNet) ListenTCP(network string, addr *net.TCPAddr) (transport.TCPListener, error) {
 	c, err := n.Net.ListenTCP(network, addr)
@@ -151,7 +175,7 @@ func (n *privateNet) DialUDP(network string, local, remote *net.UDPAddr) (transp
 	if err != nil {
 		return nil, err
 	}
-	return privateUDP{c}, nil
+	return privateUDP{UDPConn: c}, nil
 }
 func (n *privateNet) DialTCP(network string, local, remote *net.TCPAddr) (transport.TCPConn, error) {
 	if remote == nil || !PrivateIP(remote.IP.String()) {

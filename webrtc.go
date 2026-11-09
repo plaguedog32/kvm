@@ -445,6 +445,8 @@ func newSession(config SessionConfig) (*Session, error) {
 		return nil, err
 	}
 	webrtcSettingEngine.SetNet(privateNetwork)
+	webrtcSettingEngine.SetNetworkTypes([]webrtc.NetworkType{webrtc.NetworkTypeUDP4, webrtc.NetworkTypeUDP6})
+	webrtcSettingEngine.DisableActiveTCP(true)
 	webrtcSettingEngine.SetIPFilter(func(ip net.IP) bool { return localonly.PrivateIP(ip.String()) })
 
 	if config.MDNSMode != "" && config.MDNSMode != "disabled" {

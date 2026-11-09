@@ -22,6 +22,13 @@ IP before HTTP connections. Private IP literals, localhost, single-label names,
 and `.local` names are supported. Public DNS servers, environment/configured
 HTTP proxies, public redirects, and DNS answers outside the private network are
 rejected. Use private IPs for custom servers with other DNS suffixes.
+MQTT and NTP require numeric private IPs; MQTT settings reject hostnames explicitly.
+
+HTTP UI and MCP requests also reject non-private socket peer addresses, ignoring
+forwarded-client headers. SSH is an OS service and relies on the system firewall.
+Signed local OTA updates still require the trusted signing key to be available
+locally; public keyserver retrieval is blocked. A private update URL alone does
+not provide that key. Signature verification remains required.
 
 Local WebRTC uses no STUN/TURN servers. Public and relay ICE candidates are
 removed, and the Pion socket transport validates final packet destinations after
@@ -31,6 +38,8 @@ The browser receives a same-origin Content Security Policy for scripts, fonts,
 images, workers and API connections. Existing inline startup/theme code remains
 allowed. Help/source links are inert until explicitly opened by the user; they
 are not background requests.
+DNS prefetching is disabled. After changing the device's static IP, browse to its
+new address manually: the same-origin policy blocks the cross-address health probe.
 
 On application startup, an embedded firewall script attempts to install owned
 IPv4 and IPv6 OUTPUT chains allowing private/loopback/link-local destinations,

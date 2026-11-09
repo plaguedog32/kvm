@@ -303,6 +303,9 @@ func rpcGetMqttSettings() (*MQTTConfig, error) {
 }
 
 func rpcSetMqttSettings(settings MQTTConfig) error {
+	if settings.Enabled && !localonly.PrivateIP(settings.Broker) {
+		return fmt.Errorf("MQTT requires a private IP address in this local-only build; hostnames and public addresses are disabled")
+	}
 	if settings.Enabled && settings.Broker == "" {
 		return fmt.Errorf("broker address is required when MQTT is enabled")
 	}

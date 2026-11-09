@@ -1,6 +1,8 @@
 package kvm
 
 import (
+	"net"
+	"net/http"
 	"net/url"
 	"sync/atomic"
 
@@ -42,6 +44,11 @@ func applyLocalOnlyConfig(c *Config) {
 func localOnlyCandidate(candidate string) bool { return localonly.CandidateAllowed(candidate) }
 
 func localOnlyBrowserPolicy(c *gin.Context) {
+	host, _, remoteErr := net.SplitHostPort(c.Request.RemoteAddr)
+	if remoteErr != nil || !localonly.PrivateIP(host) {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
 	// Block external scripts, models, fonts, images, frames and API connections.
 	// URLs in documentation are inert links, not automatic asset loads.
 	connect := "'self'"
@@ -51,6 +58,7 @@ func localOnlyBrowserPolicy(c *gin.Context) {
 	}
 	c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src "+connect+"; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'")
 	c.Header("Referrer-Policy", "no-referrer")
+	c.Header("X-DNS-Prefetch-Control", "off")
 	c.Header("X-JetKVM-Network-Policy", "private-lan-only")
 	c.Next()
 }

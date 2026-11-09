@@ -36,11 +36,28 @@ func TestLocalOnlyBrowserPolicyBlocksExternalResources(t *testing.T) {
 	r.GET("/", func(c *gin.Context) { c.String(200, "local") })
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "http://192.168.50.2/", nil)
+	req.RemoteAddr = "192.168.50.3:12345"
 	r.ServeHTTP(w, req)
 	policy := w.Header().Get("Content-Security-Policy")
 	for _, want := range []string{"default-src 'self'", "connect-src 'self' ws://192.168.50.2", "frame-src 'none'", "form-action 'self'"} {
 		if !strings.Contains(policy, want) {
 			t.Error("missing browser boundary", want)
+		}
+	}
+}
+
+func TestLocalOnlyRejectsPublicClientsDespiteForwardedHeaders(t *testing.T) {
+	r := gin.New()
+	r.Use(localOnlyBrowserPolicy)
+	r.GET("/", func(c *gin.Context) { c.String(200, "local") })
+	for _, remote := range []string{"203.0.113.1:1234", "[2001:db8::1]:1234", "invalid"} {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "http://192.168.50.2/", nil)
+		req.RemoteAddr = remote
+		req.Header.Set("X-Forwarded-For", "192.168.50.3")
+		r.ServeHTTP(w, req)
+		if w.Code != 403 {
+			t.Errorf("remote %q: status %d", remote, w.Code)
 		}
 	}
 }

@@ -91,7 +91,6 @@ func Main() {
 		Int("ca_certs_loaded", len(rootcerts.Certs())).
 		Msg("loaded Root CA certificates")
 
-	localonly.Install()
 	initOta()
 
 	http.DefaultClient.Timeout = 1 * time.Minute
