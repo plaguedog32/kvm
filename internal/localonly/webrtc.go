@@ -30,24 +30,15 @@ func packetAddressAllowed(addr net.Addr) bool {
 	if err != nil {
 		return false
 	}
-	ip, err := netip.ParseAddr(host)
-	return PrivateIP(host) || (err == nil && ip.IsLinkLocalMulticast())
+	return PrivateIP(host)
 }
 
 type privatePacket struct {
 	net.PacketConn
-	multicast bool
 }
 
 func (c privatePacket) SyscallConn() (syscall.RawConn, error) {
-	if !c.multicast {
-		return nil, ErrDisabled
-	}
-	raw, ok := c.PacketConn.(syscall.Conn)
-	if !ok {
-		return nil, syscall.EINVAL
-	}
-	return raw.SyscallConn()
+	return nil, ErrDisabled
 }
 
 type privateTCPListener struct{ transport.TCPListener }
@@ -86,11 +77,10 @@ func (c privatePacket) WriteTo(b []byte, addr net.Addr) (int, error) {
 
 type privateUDP struct {
 	transport.UDPConn
-	multicast bool
 }
 
-// Only multicast-bound sockets expose raw controls: x/net can also use these
-// controls to write packets without calling the guarded WriteTo methods.
+// Link-local multicast listeners remain concrete UDP sockets for x/net's
+// multicast reader. All wrappers deny raw controls to keep writes guarded.
 func multicastSocket(addr net.Addr) bool {
 	if addr == nil {
 		return false
@@ -101,14 +91,7 @@ func multicastSocket(addr net.Addr) bool {
 }
 
 func (c privateUDP) SyscallConn() (syscall.RawConn, error) {
-	if !c.multicast {
-		return nil, ErrDisabled
-	}
-	raw, ok := c.UDPConn.(syscall.Conn)
-	if !ok {
-		return nil, syscall.EINVAL
-	}
-	return raw.SyscallConn()
+	return nil, ErrDisabled
 }
 
 func (c privateUDP) Write(b []byte) (int, error) {
@@ -145,17 +128,22 @@ func (n *privateNet) ListenPacket(network, address string) (net.PacketConn, erro
 	if err != nil {
 		return nil, err
 	}
-	// Go binds multicast listeners to a wildcard address internally. Preserve
-	// the requested binding rather than inspecting the resulting LocalAddr.
-	addr, parseErr := netip.ParseAddrPort(address)
-	return privatePacket{PacketConn: c, multicast: parseErr == nil && addr.Addr().IsLinkLocalMulticast()}, nil
+	return privatePacket{PacketConn: c}, nil
 }
 func (n *privateNet) ListenUDP(network string, addr *net.UDPAddr) (transport.UDPConn, error) {
 	c, err := n.Net.ListenUDP(network, addr)
 	if err != nil {
 		return nil, err
 	}
-	return privateUDP{UDPConn: c, multicast: multicastSocket(addr)}, nil
+	// x/net's multicast ReadFrom requires a concrete *net.UDPConn. Wrapping
+	// it produces immediate "invalid connection type" errors, spins mDNS's
+	// read loop, and prevents Close from joining that loop. Only local
+	// multicast listeners bypass the wrapper; ICE's query-only mDNS uses
+	// these sockets for link-local multicast. Unicast ICE stays guarded.
+	if multicastSocket(addr) {
+		return c, nil
+	}
+	return privateUDP{UDPConn: c}, nil
 }
 func (n *privateNet) ListenTCP(network string, addr *net.TCPAddr) (transport.TCPListener, error) {
 	c, err := n.Net.ListenTCP(network, addr)
@@ -203,11 +191,12 @@ func (n *privateNet) ResolveIPAddr(network, address string) (*net.IPAddr, error)
 }
 func (n *privateNet) ResolveUDPAddr(network, address string) (*net.UDPAddr, error) {
 	host, _, err := net.SplitHostPort(address)
-	if err != nil || (!LocalHost(host) && !packetAddressAllowed(&net.UDPAddr{IP: net.ParseIP(host)})) {
+	ip, parseErr := netip.ParseAddr(host)
+	if err != nil || (!LocalHost(host) && !(parseErr == nil && ip.IsLinkLocalMulticast())) {
 		return nil, ErrDisabled
 	}
 	addr, err := n.Net.ResolveUDPAddr(network, address)
-	if err == nil && !packetAddressAllowed(addr) {
+	if err == nil && !PrivateIP(addr.IP.String()) && !multicastSocket(addr) {
 		return nil, ErrDisabled
 	}
 	return addr, err

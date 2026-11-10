@@ -3,10 +3,61 @@ package localonly
 import (
 	"context"
 	"github.com/pion/ice/v4"
+	"github.com/pion/transport/v3"
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
+
+type recordingMDNSNet struct {
+	transport.Net
+	mu       sync.Mutex
+	concrete map[string]bool
+}
+
+func (n *recordingMDNSNet) ListenUDP(network string, addr *net.UDPAddr) (transport.UDPConn, error) {
+	c, err := n.Net.ListenUDP(network, addr)
+	if multicastSocket(addr) {
+		_, concrete := c.(*net.UDPConn)
+		n.mu.Lock()
+		n.concrete[network] = err == nil && concrete
+		n.mu.Unlock()
+	}
+	return c, err
+}
+
+func TestPrivateMDNSICEAgentClosesWithoutLeakingReadLoops(t *testing.T) {
+	network, err := NewPrivateNet()
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := &recordingMDNSNet{Net: network, concrete: make(map[string]bool)}
+	agent, err := ice.NewAgent(&ice.AgentConfig{
+		Net: recorder, NetworkTypes: []ice.NetworkType{ice.NetworkTypeUDP4, ice.NetworkTypeUDP6},
+		MulticastDNSMode: ice.MulticastDNSModeQueryOnly, IPFilter: func(ip net.IP) bool { return PrivateIP(ip.String()) },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder.mu.Lock()
+	for _, family := range []string{"udp4", "udp6"} {
+		if !recorder.concrete[family] {
+			t.Errorf("ICE did not obtain a concrete %s mDNS socket", family)
+		}
+	}
+	recorder.mu.Unlock()
+	done := make(chan error, 1)
+	go func() { done <- agent.Close() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ICE close stuck in multicast read loop")
+	}
+}
 
 func TestPrivateTransportConnectsLocalICEPeers(t *testing.T) {
 	makeAgent := func() *ice.Agent {
